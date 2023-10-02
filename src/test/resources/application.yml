@@ -6,3 +6,4 @@ de:
 logging:
   level:
     de.flapdoodle.embed.mongo.spring.autoconfigure: off
+    de.flapdoodle.embed.mongo.runtime: off

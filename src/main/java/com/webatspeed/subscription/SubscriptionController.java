@@ -1,5 +1,7 @@
 package com.webatspeed.subscription;
 
+import static org.springframework.http.HttpStatus.*;
+
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,10 +22,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class SubscriptionController {
 
-  @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<?> createSubscription(@RequestBody @Valid final SubscriptionDetails details) {
-    log.info(details.toString());
+  private final SubscriptionRepository subscriptionRepository;
 
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+  @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<?> createSubscription(
+      @RequestBody @Valid final SubscriptionDetails details) {
+    HttpStatus status;
+    if (subscriptionRepository.existsByEmail(details.email())) {
+      status = CONFLICT;
+    } else {
+      status = NOT_IMPLEMENTED;
+    }
+
+    return ResponseEntity.status(status).build();
   }
 }

@@ -1,8 +1,14 @@
 package com.webatspeed.subscription;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
+import com.webatspeed.subscription.model.Subscription;
 import net.datafaker.Faker;
+import org.instancio.Instancio;
+import org.instancio.Select;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,8 +16,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 @AutoConfigureMockMvc
 @SpringBootTest
@@ -22,11 +26,17 @@ public class SubscriptionControllerIT {
 
   @Autowired private ObjectMapper objectMapper;
 
+  @Autowired private SubscriptionRepository subscriptionRepository;
+
   private SubscriptionDetails subscriptionDetails;
+
+  @SuppressWarnings("unused,FieldCanBeLocal")
+  private Subscription subscription;
 
   @AfterEach
   void cleanUp() {
     subscriptionDetails = null;
+    subscriptionRepository.deleteAll();
   }
 
   @Test
@@ -35,10 +45,10 @@ public class SubscriptionControllerIT {
 
     mockMvc
         .perform(
-            MockMvcRequestBuilders.post("/v1/subscription")
+            post("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
-        .andExpect(MockMvcResultMatchers.status().isBadRequest());
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -47,10 +57,10 @@ public class SubscriptionControllerIT {
 
     mockMvc
         .perform(
-            MockMvcRequestBuilders.post("/v1/subscription")
+            post("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
-        .andExpect(MockMvcResultMatchers.status().isBadRequest());
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -59,10 +69,23 @@ public class SubscriptionControllerIT {
 
     mockMvc
         .perform(
-            MockMvcRequestBuilders.post("/v1/subscription")
+            post("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
-        .andExpect(MockMvcResultMatchers.status().isBadRequest());
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createSubscriptionShouldRespondWithConflictOnExistingEmail() throws Exception {
+    givenValidSubscriptionDetails();
+    givenAnExistingSubscription(subscriptionDetails.email());
+
+    mockMvc
+        .perform(
+            post("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isConflict());
   }
 
   @Test
@@ -71,10 +94,10 @@ public class SubscriptionControllerIT {
 
     mockMvc
         .perform(
-            MockMvcRequestBuilders.post("/v1/subscription")
+            post("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
-        .andExpect(MockMvcResultMatchers.status().isNotImplemented());
+        .andExpect(status().isNotImplemented());
   }
 
   private void givenSubscriptionDetailsWithNullEmail() {
@@ -92,5 +115,13 @@ public class SubscriptionControllerIT {
 
   private void givenValidSubscriptionDetails() {
     subscriptionDetails = new SubscriptionDetails(FAKER.internet().emailAddress());
+  }
+
+  private void givenAnExistingSubscription(String email) {
+    subscription =
+        subscriptionRepository.save(
+            Instancio.of(Subscription.class).set(Select.field("email"), email).create());
+
+    subscriptionDetails = new SubscriptionDetails(email);
   }
 }

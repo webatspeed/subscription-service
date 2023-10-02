@@ -32,6 +32,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'net.datafaker:datafaker:2.0.1'
     testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo.spring31x:4.9.3'
+    testImplementation 'org.instancio:instancio-junit:3.3.0'
 }
 
 tasks.named('test') {
