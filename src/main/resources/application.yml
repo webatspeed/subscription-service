@@ -1,6 +1,8 @@
 spring:
   data:
     mongodb:
-      username: ${MONGO_USER:user}
-      password: ${MONGO_PASS:pass}
+      auto-index-creation: true
       database: ${MONGO_DB:subscription}
+      password: ${MONGO_PASS:pass}
+      username: ${MONGO_USER:user}
+      authentication-database: admin

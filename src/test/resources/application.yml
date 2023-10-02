@@ -7,3 +7,7 @@ logging:
   level:
     de.flapdoodle.embed.mongo.spring.autoconfigure: off
     de.flapdoodle.embed.mongo.runtime: off
+spring:
+  data:
+    mongodb:
+      auto-index-creation: true
