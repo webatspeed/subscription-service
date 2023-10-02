@@ -1,0 +1,6 @@
+spring:
+  data:
+    mongodb:
+      username: ${MONGO_USER:user}
+      password: ${MONGO_PASS:pass}
+      database: ${MONGO_DB:subscription}
