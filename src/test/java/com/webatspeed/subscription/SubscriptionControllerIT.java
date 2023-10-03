@@ -133,7 +133,7 @@ public class SubscriptionControllerIT {
 
   @Test
   void updateSubscriptionShouldRespondWithNotFoundOnUnknownEmail() throws Exception {
-    givenValidUpdateSubscriptionDetailsByUser();
+    givenValidUpdateSubscriptionDetails();
 
     mockMvc
         .perform(
@@ -144,8 +144,21 @@ public class SubscriptionControllerIT {
   }
 
   @Test
+  void updateSubscriptionShouldRespondWithNotFoundOnNotMatchingToken() throws Exception {
+    givenValidUpdateSubscriptionDetails();
+    givenAnExistingSubscription(subscriptionDetails.email(), UUID.randomUUID().toString(), null);
+
+    mockMvc
+        .perform(
+            put("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void updateSubscriptionShouldRespondWithNoContentOnValidUserToken() throws Exception {
-    givenValidUpdateSubscriptionDetailsByUser();
+    givenValidUpdateSubscriptionDetails();
     givenAnExistingSubscription(subscriptionDetails.email(), subscriptionDetails.token(), null);
 
     assertEquals(1, subscriptionRepository.count());
@@ -166,7 +179,7 @@ public class SubscriptionControllerIT {
 
   @Test
   void updateSubscriptionShouldRespondWithNoContentOnValidOwnerToken() throws Exception {
-    givenValidUpdateSubscriptionDetailsByUser();
+    givenValidUpdateSubscriptionDetails();
     givenAnExistingSubscription(subscriptionDetails.email(), null, subscriptionDetails.token());
 
     assertEquals(1, subscriptionRepository.count());
@@ -206,7 +219,7 @@ public class SubscriptionControllerIT {
     subscriptionDetails = new SubscriptionDetails(FAKER.internet().emailAddress(), "");
   }
 
-  private void givenValidUpdateSubscriptionDetailsByUser() {
+  private void givenValidUpdateSubscriptionDetails() {
     subscriptionDetails =
         Instancio.of(SubscriptionDetails.class)
             .set(Select.field("email"), FAKER.internet().emailAddress())
