@@ -119,9 +119,14 @@ public class SubscriptionControllerIT {
 
   private void givenAnExistingSubscription(String email) {
     subscription =
-        subscriptionRepository.save(
-            Instancio.of(Subscription.class).set(Select.field("email"), email).create());
-
+        Instancio.of(Subscription.class)
+            .set(Select.field("id"), null)
+            .set(Select.field("email"), email)
+            .set(Select.field("createdAt"), null)
+            .set(Select.field("modifiedAt"), null)
+            .set(Select.field("version"), null)
+            .create();
+    subscriptionRepository.save(subscription);
     subscriptionDetails = new SubscriptionDetails(email);
   }
 }
