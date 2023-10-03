@@ -22,16 +22,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class SubscriptionController {
 
-  private final SubscriptionRepository subscriptionRepository;
+  private final SubscriptionRepository repository;
+
+  private final SubscriptionMapper mapper;
 
   @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<?> createSubscription(
       @RequestBody @Valid final SubscriptionDetails details) {
     HttpStatus status;
-    if (subscriptionRepository.existsByEmail(details.email())) {
+
+    if (repository.existsByEmail(details.email())) {
       status = CONFLICT;
     } else {
-      status = NOT_IMPLEMENTED;
+      var subscription = mapper.subscriptionOf(details);
+      repository.save(subscription);
+      status = NO_CONTENT;
     }
 
     return ResponseEntity.status(status).build();

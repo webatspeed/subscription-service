@@ -1,5 +1,6 @@
 package com.webatspeed.subscription;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -30,7 +31,7 @@ public class SubscriptionControllerIT {
 
   private SubscriptionDetails subscriptionDetails;
 
-  @SuppressWarnings("unused,FieldCanBeLocal")
+  @SuppressWarnings("FieldCanBeLocal")
   private Subscription subscription;
 
   @AfterEach
@@ -89,15 +90,20 @@ public class SubscriptionControllerIT {
   }
 
   @Test
-  void createSubscriptionShouldRespondWithNotImplementedOnValidDetails() throws Exception {
+  void createSubscriptionShouldRespondWithNoContentOnValidDetails() throws Exception {
     givenValidSubscriptionDetails();
 
+    assertEquals(0, subscriptionRepository.count());
     mockMvc
         .perform(
             post("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isNoContent());
+
+    var subscriptions = subscriptionRepository.findAll();
+    assertEquals(1, subscriptions.size());
+    assertEquals(subscriptionDetails.email(), subscriptions.get(0).getEmail());
   }
 
   private void givenSubscriptionDetailsWithNullEmail() {
