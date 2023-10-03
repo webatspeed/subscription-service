@@ -21,7 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @AutoConfigureMockMvc
 @SpringBootTest
-public class SubscriptionControllerIT {
+public class SubscriptionControllerTests {
   private static final Faker FAKER = new Faker();
 
   @Autowired private MockMvc mockMvc;

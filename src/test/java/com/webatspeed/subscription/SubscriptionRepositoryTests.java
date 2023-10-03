@@ -17,7 +17,7 @@ import org.springframework.dao.DuplicateKeyException;
 
 @DataMongoTest
 @Import(MongoConfiguration.class)
-public class SubscriptionRepositoryIT {
+public class SubscriptionRepositoryTests {
 
   private static final Faker FAKER = new Faker();
 
