@@ -152,12 +152,52 @@ public class SubscriptionControllerTests {
         UUID.randomUUID().toString(),
         UUID.randomUUID().toString());
 
+    var s =
+        subscriptionRepository
+            .findByEmailAndNumTokenErrorsLessThan(subscription.getEmail(), 3)
+            .orElseThrow();
+    assertEquals(0, s.getNumTokenErrors());
+
     mockMvc
         .perform(
             put("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+
+    s =
+        subscriptionRepository
+            .findByEmailAndNumTokenErrorsLessThan(subscription.getEmail(), 3)
+            .orElseThrow();
+    assertEquals(1, s.getNumTokenErrors());
+  }
+
+  @Test
+  void updateSubscriptionShouldRespondWithNotFoundAfterThreeFails() throws Exception {
+    givenFullSubscriptionDetails();
+    var token = UUID.randomUUID().toString();
+    givenAnExistingSubscription(
+        subscriptionDetails.email(),
+        token,
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString());
+
+    for (int i = 0; i < 3; i++) {
+      mockMvc
+          .perform(
+              put("/v1/subscription")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(subscriptionDetails)))
+          .andExpect(status().isBadRequest());
+    }
+
+    givenFullSubscriptionDetails(subscriptionDetails.email(), token);
+    mockMvc
+        .perform(
+            put("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -183,6 +223,7 @@ public class SubscriptionControllerTests {
     assertEquals(subscriptionDetails.email(), savedSubscription.getEmail());
     assertTrue(savedSubscription.getConfirmedByUser());
     assertFalse(savedSubscription.getConfirmedByOwner());
+    assertEquals(0, savedSubscription.getNumTokenErrors());
   }
 
   @Test
@@ -208,6 +249,7 @@ public class SubscriptionControllerTests {
     assertEquals(subscriptionDetails.email(), savedSubscription.getEmail());
     assertTrue(savedSubscription.getConfirmedByUser());
     assertTrue(savedSubscription.getConfirmedByOwner());
+    assertEquals(0, savedSubscription.getNumTokenErrors());
   }
 
   @Test
@@ -243,12 +285,24 @@ public class SubscriptionControllerTests {
         UUID.randomUUID().toString(),
         UUID.randomUUID().toString());
 
+    var s =
+        subscriptionRepository
+            .findByEmailAndNumTokenErrorsLessThan(subscription.getEmail(), 3)
+            .orElseThrow();
+    assertEquals(0, s.getNumTokenErrors());
+
     mockMvc
         .perform(
             delete("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+
+    s =
+        subscriptionRepository
+            .findByEmailAndNumTokenErrorsLessThan(subscription.getEmail(), 3)
+            .orElseThrow();
+    assertEquals(1, s.getNumTokenErrors());
   }
 
   @Test
@@ -288,6 +342,34 @@ public class SubscriptionControllerTests {
     assertEquals(0, subscriptionRepository.count());
   }
 
+  @Test
+  void deleteSubscriptionShouldRespondWithNotFoundAfterThreeFails() throws Exception {
+    givenFullSubscriptionDetails();
+    var token = UUID.randomUUID().toString();
+    givenAnExistingSubscription(
+        subscriptionDetails.email(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        token);
+
+    for (int i = 0; i < 3; i++) {
+      mockMvc
+          .perform(
+              delete("/v1/subscription")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(subscriptionDetails)))
+          .andExpect(status().isBadRequest());
+    }
+
+    givenFullSubscriptionDetails(subscriptionDetails.email(), token);
+    mockMvc
+        .perform(
+            delete("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isNotFound());
+  }
+
   private void givenCreateSubscriptionDetailsWithNullEmail() {
     subscriptionDetails = new SubscriptionDetails(null, null);
   }
@@ -310,10 +392,14 @@ public class SubscriptionControllerTests {
   }
 
   private void givenFullSubscriptionDetails() {
+    givenFullSubscriptionDetails(FAKER.internet().emailAddress(), UUID.randomUUID().toString());
+  }
+
+  private void givenFullSubscriptionDetails(String email, String token) {
     subscriptionDetails =
         Instancio.of(SubscriptionDetails.class)
-            .set(Select.field("email"), FAKER.internet().emailAddress())
-            .set(Select.field("token"), UUID.randomUUID().toString())
+            .set(Select.field("email"), email)
+            .set(Select.field("token"), token)
             .create();
   }
 
