@@ -79,7 +79,7 @@ public class SubscriptionControllerTests {
 
   @Test
   void createSubscriptionShouldRespondWithConflictOnExistingEmail() throws Exception {
-    givenValidCreateSubscriptionDetails();
+    givenSubscriptionDetailsWithoutToken();
     givenAnExistingSubscription(subscriptionDetails.email());
 
     mockMvc
@@ -92,7 +92,7 @@ public class SubscriptionControllerTests {
 
   @Test
   void createSubscriptionShouldRespondWithCreatedOnValidDetails() throws Exception {
-    givenValidCreateSubscriptionDetails();
+    givenSubscriptionDetailsWithoutToken();
 
     assertEquals(0, subscriptionRepository.count());
     mockMvc
@@ -109,7 +109,7 @@ public class SubscriptionControllerTests {
 
   @Test
   void updateSubscriptionShouldRespondWithBadRequestOnWithNullEmail() throws Exception {
-    givenValidCreateSubscriptionDetails();
+    givenSubscriptionDetailsWithoutToken();
 
     mockMvc
         .perform(
@@ -121,7 +121,7 @@ public class SubscriptionControllerTests {
 
   @Test
   void updateSubscriptionShouldRespondWithBadRequestOnWithEmptyToken() throws Exception {
-    givenUpdateSubscriptionDetailsWithEmptyToken();
+    givenSubscriptionDetailsWithEmptyToken();
 
     mockMvc
         .perform(
@@ -133,7 +133,7 @@ public class SubscriptionControllerTests {
 
   @Test
   void updateSubscriptionShouldRespondWithNotFoundOnUnknownEmail() throws Exception {
-    givenValidUpdateSubscriptionDetails();
+    givenFullSubscriptionDetails();
 
     mockMvc
         .perform(
@@ -144,9 +144,13 @@ public class SubscriptionControllerTests {
   }
 
   @Test
-  void updateSubscriptionShouldRespondWithNotFoundOnNotMatchingToken() throws Exception {
-    givenValidUpdateSubscriptionDetails();
-    givenAnExistingSubscription(subscriptionDetails.email(), UUID.randomUUID().toString(), null);
+  void updateSubscriptionShouldRespondWithBadRequestOnNotMatchingToken() throws Exception {
+    givenFullSubscriptionDetails();
+    givenAnExistingSubscription(
+        subscriptionDetails.email(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString());
 
     mockMvc
         .perform(
@@ -158,8 +162,12 @@ public class SubscriptionControllerTests {
 
   @Test
   void updateSubscriptionShouldRespondWithNoContentOnValidUserToken() throws Exception {
-    givenValidUpdateSubscriptionDetails();
-    givenAnExistingSubscription(subscriptionDetails.email(), subscriptionDetails.token(), null);
+    givenFullSubscriptionDetails();
+    givenAnExistingSubscription(
+        subscriptionDetails.email(),
+        subscriptionDetails.token(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString());
 
     assertEquals(1, subscriptionRepository.count());
     mockMvc
@@ -179,8 +187,12 @@ public class SubscriptionControllerTests {
 
   @Test
   void updateSubscriptionShouldRespondWithNoContentOnValidOwnerToken() throws Exception {
-    givenValidUpdateSubscriptionDetails();
-    givenAnExistingSubscription(subscriptionDetails.email(), null, subscriptionDetails.token());
+    givenFullSubscriptionDetails();
+    givenAnExistingSubscription(
+        subscriptionDetails.email(),
+        UUID.randomUUID().toString(),
+        subscriptionDetails.token(),
+        UUID.randomUUID().toString());
 
     assertEquals(1, subscriptionRepository.count());
     mockMvc
@@ -198,6 +210,84 @@ public class SubscriptionControllerTests {
     assertTrue(savedSubscription.getConfirmedByOwner());
   }
 
+  @Test
+  void deleteSubscriptionShouldRespondWithBadRequestOnWithNullEmail() throws Exception {
+    givenSubscriptionDetailsWithoutToken();
+
+    mockMvc
+        .perform(
+            delete("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void deleteSubscriptionShouldRespondWithBadRequestOnWithEmptyToken() throws Exception {
+    givenSubscriptionDetailsWithEmptyToken();
+
+    mockMvc
+        .perform(
+            delete("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void deleteSubscriptionShouldRespondWithBadRequestOnNotMatchingToken() throws Exception {
+    givenFullSubscriptionDetails();
+    givenAnExistingSubscription(
+        subscriptionDetails.email(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString());
+
+    mockMvc
+        .perform(
+            delete("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void deleteSubscriptionShouldRespondWithNoContentOnValidUnsubscribeTokenAndExistingSubscription()
+      throws Exception {
+    givenFullSubscriptionDetails();
+    givenAnExistingSubscription(
+        subscriptionDetails.email(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        subscriptionDetails.token());
+
+    assertEquals(1, subscriptionRepository.count());
+    mockMvc
+        .perform(
+            delete("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isNoContent());
+
+    assertEquals(0, subscriptionRepository.count());
+  }
+
+  @Test
+  void deleteSubscriptionShouldRespondWithNoContentOnTokenAndNotExistingSubscription()
+      throws Exception {
+    givenFullSubscriptionDetails();
+
+    assertEquals(0, subscriptionRepository.count());
+    mockMvc
+        .perform(
+            delete("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isNoContent());
+
+    assertEquals(0, subscriptionRepository.count());
+  }
+
   private void givenCreateSubscriptionDetailsWithNullEmail() {
     subscriptionDetails = new SubscriptionDetails(null, null);
   }
@@ -211,15 +301,15 @@ public class SubscriptionControllerTests {
     subscriptionDetails = new SubscriptionDetails(noEmail, null);
   }
 
-  private void givenValidCreateSubscriptionDetails() {
+  private void givenSubscriptionDetailsWithoutToken() {
     subscriptionDetails = new SubscriptionDetails(FAKER.internet().emailAddress(), null);
   }
 
-  private void givenUpdateSubscriptionDetailsWithEmptyToken() {
+  private void givenSubscriptionDetailsWithEmptyToken() {
     subscriptionDetails = new SubscriptionDetails(FAKER.internet().emailAddress(), "");
   }
 
-  private void givenValidUpdateSubscriptionDetails() {
+  private void givenFullSubscriptionDetails() {
     subscriptionDetails =
         Instancio.of(SubscriptionDetails.class)
             .set(Select.field("email"), FAKER.internet().emailAddress())
@@ -228,18 +318,21 @@ public class SubscriptionControllerTests {
   }
 
   private void givenAnExistingSubscription(String email) {
-    givenAnExistingSubscription(email, null, null);
+    givenAnExistingSubscription(email, null, null, null);
   }
 
   private void givenAnExistingSubscription(
-      String email, String userConfirmationToken, String ownerConfirmationToken) {
+      String email,
+      String userConfirmationToken,
+      String ownerConfirmationToken,
+      String userUnsubscribeToken) {
     subscription =
         Instancio.of(Subscription.class)
             .set(Select.field("id"), null)
             .set(Select.field("email"), email)
             .set(Select.field("userConfirmationToken"), userConfirmationToken)
             .set(Select.field("ownerConfirmationToken"), ownerConfirmationToken)
-            .set(Select.field("userUnsubscribeToken"), null)
+            .set(Select.field("userUnsubscribeToken"), userUnsubscribeToken)
             .set(Select.field("numTokenErrors"), null)
             .set(Select.field("confirmedByUser"), ownerConfirmationToken != null)
             .set(Select.field("confirmedByOwner"), null)

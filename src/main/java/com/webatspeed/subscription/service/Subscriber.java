@@ -12,20 +12,32 @@ public class Subscriber {
 
   private final SubscriptionRepository repository;
 
-  public Subscription applyToken(Subscription subscription, String token) {
+  public Subscription applyUpdateToken(Subscription subscription, String token) {
     if (subscription.getConfirmedByUser()
         && token.equals(subscription.getOwnerConfirmationToken())) {
       subscription.setConfirmedByOwner(true);
-      subscription.resetNumTokenErrors();
     } else if (token.equals(subscription.getUserConfirmationToken())) {
       subscription.setConfirmedByUser(true);
-      subscription.resetNumTokenErrors();
     } else {
       subscription.incNumTokenErrors();
+      repository.save(subscription);
       throw new FalseTokenException();
     }
 
+    subscription.resetNumTokenErrors();
     repository.save(subscription);
+
+    return subscription;
+  }
+
+  public Subscription applyDeleteToken(Subscription subscription, String token) {
+    if (token.equals(subscription.getUserUnsubscribeToken())) {
+      repository.delete(subscription);
+    } else {
+      subscription.incNumTokenErrors();
+      repository.save(subscription);
+      throw new FalseTokenException();
+    }
 
     return subscription;
   }

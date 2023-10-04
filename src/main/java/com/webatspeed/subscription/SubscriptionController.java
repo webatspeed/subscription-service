@@ -54,8 +54,25 @@ public class SubscriptionController {
 
     repository
         .findByEmailAndNumTokenErrorsLessThan(details.email(), 3)
-        .map(s -> subscriber.applyToken(s, details.token()))
+        .map(s -> subscriber.applyUpdateToken(s, details.token()))
         .orElseThrow(UserUnknownOrLockedException::new);
+
+    return ResponseEntity.status(NO_CONTENT).build();
+  }
+
+  @DeleteMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<?> deleteSubscription(
+      @RequestBody @Valid final SubscriptionDetails details) {
+    if (!StringUtils.hasText(details.token())) {
+      throw new FalseTokenException();
+    }
+
+    if (repository.existsByEmail(details.email())) {
+      repository
+          .findByEmailAndNumTokenErrorsLessThan(details.email(), 3)
+          .map(s -> subscriber.applyDeleteToken(s, details.token()))
+          .orElseThrow(UserUnknownOrLockedException::new);
+    }
 
     return ResponseEntity.status(NO_CONTENT).build();
   }
