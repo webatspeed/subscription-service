@@ -39,7 +39,7 @@ public class SubscriptionController {
     } else {
       var subscription = mapper.subscriptionOf(details);
       repository.save(subscription);
-      status = NO_CONTENT;
+      status = CREATED;
     }
 
     return ResponseEntity.status(status).build();

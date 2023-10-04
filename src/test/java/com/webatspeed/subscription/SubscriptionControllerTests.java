@@ -91,7 +91,7 @@ public class SubscriptionControllerTests {
   }
 
   @Test
-  void createSubscriptionShouldRespondWithNoContentOnValidDetails() throws Exception {
+  void createSubscriptionShouldRespondWithCreatedOnValidDetails() throws Exception {
     givenValidCreateSubscriptionDetails();
 
     assertEquals(0, subscriptionRepository.count());
@@ -100,7 +100,7 @@ public class SubscriptionControllerTests {
             post("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
-        .andExpect(status().isNoContent());
+        .andExpect(status().isCreated());
 
     var subscriptions = subscriptionRepository.findAll();
     assertEquals(1, subscriptions.size());
