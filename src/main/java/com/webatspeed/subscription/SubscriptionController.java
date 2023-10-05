@@ -4,19 +4,17 @@ import static org.springframework.http.HttpStatus.*;
 
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.exception.FalseTokenException;
+import com.webatspeed.subscription.exception.UserAlreadyExistsException;
 import com.webatspeed.subscription.exception.UserUnknownOrLockedException;
 import com.webatspeed.subscription.service.Subscriber;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-@Slf4j
 @Validated
 @RequestMapping("/v1/subscription")
 @RestController
@@ -32,17 +30,14 @@ public class SubscriptionController {
   @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<?> createSubscription(
       @RequestBody @Valid final SubscriptionDetails details) {
-    HttpStatus status;
-
     if (repository.existsByEmail(details.email())) {
-      status = CONFLICT;
+      throw new UserAlreadyExistsException();
     } else {
       var subscription = mapper.subscriptionOf(details);
       repository.save(subscription);
-      status = CREATED;
     }
 
-    return ResponseEntity.status(status).build();
+    return ResponseEntity.status(CREATED).build();
   }
 
   @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
