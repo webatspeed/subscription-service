@@ -1,9 +1,12 @@
 package com.webatspeed.subscription;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.amazonaws.services.simpleemailv2.AmazonSimpleEmailServiceV2;
+import com.amazonaws.services.simpleemailv2.model.SendEmailRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.model.Subscription;
@@ -13,9 +16,12 @@ import org.instancio.Instancio;
 import org.instancio.Select;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,6 +35,10 @@ public class SubscriptionControllerTests {
   @Autowired private ObjectMapper objectMapper;
 
   @Autowired private SubscriptionRepository subscriptionRepository;
+
+  @MockBean private AmazonSimpleEmailServiceV2 emailClient;
+
+  @Captor ArgumentCaptor<SendEmailRequest> captor;
 
   private SubscriptionDetails subscriptionDetails;
 
@@ -91,7 +101,7 @@ public class SubscriptionControllerTests {
   }
 
   @Test
-  void createSubscriptionShouldRespondWithCreatedOnValidDetails() throws Exception {
+  void createSubscriptionShouldRespondWithCreatedOnValidDetailsAndSendEmail() throws Exception {
     givenSubscriptionDetailsWithoutToken();
 
     assertEquals(0, subscriptionRepository.count());
@@ -102,9 +112,19 @@ public class SubscriptionControllerTests {
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isCreated());
 
-    var subscriptions = subscriptionRepository.findAll();
-    assertEquals(1, subscriptions.size());
-    assertEquals(subscriptionDetails.email(), subscriptions.get(0).getEmail());
+    var subscriptionsSaved = subscriptionRepository.findAll();
+    assertEquals(1, subscriptionsSaved.size());
+    var subscriptionSaved = subscriptionsSaved.get(0);
+    assertEquals(subscriptionDetails.email(), subscriptionSaved.getEmail());
+    verify(emailClient).sendEmail(captor.capture());
+
+    var request = captor.getValue();
+    assertEquals(subscriptionDetails.email(), request.getDestination().getToAddresses().get(0));
+    var template = request.getContent().getTemplate();
+    assertEquals("please-confirm", template.getTemplateName());
+    assertTrue(template.getTemplateData().contains(subscriptionSaved.getUserConfirmationToken()));
+    assertTrue(template.getTemplateData().contains(subscriptionDetails.email()));
+    assertEquals("test@email.local", request.getFromEmailAddress());
   }
 
   @Test
