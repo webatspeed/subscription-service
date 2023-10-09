@@ -1,7 +1,9 @@
-package com.webatspeed.subscription;
+package com.webatspeed.subscription.controller;
 
 import static org.springframework.http.HttpStatus.*;
 
+import com.webatspeed.subscription.SubscriptionMapper;
+import com.webatspeed.subscription.SubscriptionRepository;
 import com.webatspeed.subscription.config.MailConfiguration;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.exception.FalseTokenException;

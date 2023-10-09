@@ -1,4 +1,4 @@
-package com.webatspeed.subscription;
+package com.webatspeed.subscription.controller;
 
 import com.webatspeed.subscription.exception.FalseTokenException;
 import com.webatspeed.subscription.exception.UserAlreadyExistsException;

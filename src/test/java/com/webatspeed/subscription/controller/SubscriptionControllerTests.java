@@ -1,4 +1,4 @@
-package com.webatspeed.subscription;
+package com.webatspeed.subscription.controller;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.amazonaws.services.simpleemailv2.AmazonSimpleEmailServiceV2;
 import com.amazonaws.services.simpleemailv2.model.SendEmailRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.webatspeed.subscription.SubscriptionRepository;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.model.Subscription;
 import java.util.UUID;
