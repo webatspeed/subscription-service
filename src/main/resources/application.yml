@@ -1,3 +1,12 @@
+cloud:
+  aws:
+    credentials:
+      access-key: ${SES_USER:}
+      secret-key: ${SES_PASS:}
+    region:
+      static: ${SES_REGION:eu-central-1}
+email:
+  default-sender: ${EMAIL:}
 spring:
   data:
     mongodb:

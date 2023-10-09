@@ -1,8 +1,17 @@
+cloud:
+  aws:
+    credentials:
+      access-key: test-access-key
+      secret-key: test-secret-key
+    region:
+      static: test-region
 de:
   flapdoodle:
     mongodb:
       embedded:
         version: 7.0.0-rc8
+email:
+  default-sender: test@email.local
 logging:
   level:
     de.flapdoodle.embed.mongo.spring.autoconfigure: off
