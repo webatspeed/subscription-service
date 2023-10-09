@@ -323,6 +323,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -335,6 +336,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -364,6 +366,7 @@ public class SubscriptionControllerTests {
             .findByEmailAndNumTokenErrorsLessThan(subscription.getEmail(), 3)
             .orElseThrow();
     assertEquals(1, s.getNumTokenErrors());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -385,6 +388,7 @@ public class SubscriptionControllerTests {
         .andExpect(status().isNoContent());
 
     assertEquals(0, subscriptionRepository.count());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -401,6 +405,7 @@ public class SubscriptionControllerTests {
         .andExpect(status().isNoContent());
 
     assertEquals(0, subscriptionRepository.count());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -429,6 +434,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isNotFound());
+    verifyNoInteractions(emailClient);
   }
 
   private void givenCreateSubscriptionDetailsWithNullEmail() {
