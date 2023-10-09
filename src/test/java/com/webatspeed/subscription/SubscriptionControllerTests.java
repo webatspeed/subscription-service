@@ -437,6 +437,55 @@ public class SubscriptionControllerTests {
     verifyNoInteractions(emailClient);
   }
 
+  @Test
+  void methodsShouldResultInCrudFlow() throws Exception {
+    givenSubscriptionDetailsWithoutToken();
+
+    assertEquals(0, subscriptionRepository.count());
+    mockMvc
+        .perform(
+            post("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isCreated());
+
+    var subscriptionSaved =
+        subscriptionRepository
+            .findByEmailAndNumTokenErrorsLessThan(subscriptionDetails.email(), 1)
+            .orElseThrow();
+    subscriptionDetails =
+        new SubscriptionDetails(
+            subscriptionSaved.getEmail(), subscriptionSaved.getUserConfirmationToken());
+    mockMvc
+        .perform(
+            put("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isNoContent());
+
+    subscriptionDetails =
+        new SubscriptionDetails(
+            subscriptionSaved.getEmail(), subscriptionSaved.getOwnerConfirmationToken());
+    mockMvc
+        .perform(
+            put("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isNoContent());
+
+    assertEquals(1, subscriptionRepository.count());
+    subscriptionDetails =
+        new SubscriptionDetails(
+            subscriptionSaved.getEmail(), subscriptionSaved.getUserUnsubscribeToken());
+    mockMvc
+        .perform(
+            delete("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isNoContent());
+    assertEquals(0, subscriptionRepository.count());
+  }
+
   private void givenCreateSubscriptionDetailsWithNullEmail() {
     subscriptionDetails = new SubscriptionDetails(null, null);
   }
