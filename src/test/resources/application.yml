@@ -12,6 +12,7 @@ de:
         version: 7.0.0-rc8
 email:
   default-sender: test@email.local
+  max-errors: 3
 logging:
   level:
     de.flapdoodle.embed.mongo.spring.autoconfigure: off

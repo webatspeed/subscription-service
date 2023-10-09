@@ -3,6 +3,7 @@ package com.webatspeed.subscription;
 import static org.springframework.http.HttpStatus.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.webatspeed.subscription.config.MailConfiguration;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.exception.FalseTokenException;
 import com.webatspeed.subscription.exception.UserAlreadyExistsException;
@@ -31,6 +32,8 @@ public class SubscriptionController {
 
   private final Mailer mailer;
 
+  private final MailConfiguration configuration;
+
   @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<?> createSubscription(@RequestBody @Valid final SubscriptionDetails details)
       throws JsonProcessingException {
@@ -54,7 +57,7 @@ public class SubscriptionController {
     }
 
     repository
-        .findByEmailAndNumTokenErrorsLessThan(details.email(), 3)
+        .findByEmailAndNumTokenErrorsLessThan(details.email(), configuration.getMaxErrors())
         .map(s -> subscriber.applyUpdateToken(s, details.token()))
         .orElseThrow(UserUnknownOrLockedException::new);
 
@@ -70,7 +73,7 @@ public class SubscriptionController {
 
     if (repository.existsByEmail(details.email())) {
       repository
-          .findByEmailAndNumTokenErrorsLessThan(details.email(), 3)
+          .findByEmailAndNumTokenErrorsLessThan(details.email(), configuration.getMaxErrors())
           .map(s -> subscriber.applyDeleteToken(s, details.token()))
           .orElseThrow(UserUnknownOrLockedException::new);
     }

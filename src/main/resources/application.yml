@@ -7,6 +7,7 @@ cloud:
       static: ${SES_REGION:eu-central-1}
 email:
   default-sender: ${EMAIL:}
+  max-errors: ${MAX_ERRORS:3}
 spring:
   data:
     mongodb:
