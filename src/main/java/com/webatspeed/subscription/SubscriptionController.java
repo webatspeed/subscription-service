@@ -50,16 +50,25 @@ public class SubscriptionController {
   }
 
   @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<?> updateSubscription(
-      @RequestBody @Valid final SubscriptionDetails details) {
+  public ResponseEntity<?> updateSubscription(@RequestBody @Valid final SubscriptionDetails details)
+      throws JsonProcessingException {
     if (!StringUtils.hasText(details.token())) {
       throw new FalseTokenException();
     }
 
-    repository
-        .findByEmailAndNumTokenErrorsLessThan(details.email(), configuration.getMaxErrors())
-        .map(s -> subscriber.applyUpdateToken(s, details.token()))
-        .orElseThrow(UserUnknownOrLockedException::new);
+    var subscription =
+        repository
+            .findByEmailAndNumTokenErrorsLessThan(details.email(), configuration.getMaxErrors())
+            .map(s -> subscriber.applyUpdateToken(s, details.token()))
+            .orElseThrow(UserUnknownOrLockedException::new);
+
+    var email = subscription.getEmail();
+    if (subscription.getConfirmedByOwner()) {
+      mailer.emailFirstCv(email, subscription.getUserUnsubscribeToken());
+    } else if (subscription.getConfirmedByUser()) {
+      mailer.emailPleaseWait(email);
+      mailer.emailPleaseApprove(email, subscription.getOwnerConfirmationToken());
+    }
 
     return ResponseEntity.status(NO_CONTENT).build();
   }

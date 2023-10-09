@@ -61,6 +61,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -73,6 +74,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -85,6 +87,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -98,6 +101,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isConflict());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -116,8 +120,8 @@ public class SubscriptionControllerTests {
     assertEquals(1, subscriptionsSaved.size());
     var subscriptionSaved = subscriptionsSaved.get(0);
     assertEquals(subscriptionDetails.email(), subscriptionSaved.getEmail());
-    verify(emailClient).sendEmail(captor.capture());
 
+    verify(emailClient).sendEmail(captor.capture());
     var request = captor.getValue();
     assertEquals(subscriptionDetails.email(), request.getDestination().getToAddresses().get(0));
     var template = request.getContent().getTemplate();
@@ -137,6 +141,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -149,6 +154,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isBadRequest());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -161,6 +167,7 @@ public class SubscriptionControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isNotFound());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -190,6 +197,7 @@ public class SubscriptionControllerTests {
             .findByEmailAndNumTokenErrorsLessThan(subscription.getEmail(), 3)
             .orElseThrow();
     assertEquals(1, s.getNumTokenErrors());
+    verifyNoInteractions(emailClient);
   }
 
   @Test
@@ -212,16 +220,19 @@ public class SubscriptionControllerTests {
     }
 
     givenFullSubscriptionDetails(subscriptionDetails.email(), token);
+
     mockMvc
         .perform(
             put("/v1/subscription")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(subscriptionDetails)))
         .andExpect(status().isNotFound());
+
+    verifyNoInteractions(emailClient);
   }
 
   @Test
-  void updateSubscriptionShouldRespondWithNoContentOnValidUserToken() throws Exception {
+  void updateSubscriptionShouldRespondWithNoContentAndSendEmailOnValidUserToken() throws Exception {
     givenFullSubscriptionDetails();
     givenAnExistingSubscription(
         subscriptionDetails.email(),
@@ -244,10 +255,31 @@ public class SubscriptionControllerTests {
     assertTrue(savedSubscription.getConfirmedByUser());
     assertFalse(savedSubscription.getConfirmedByOwner());
     assertEquals(0, savedSubscription.getNumTokenErrors());
+
+    verify(emailClient, times(2)).sendEmail(captor.capture());
+    var requests = captor.getAllValues();
+
+    var firstRequest = requests.get(0);
+    assertEquals(
+        subscriptionDetails.email(), firstRequest.getDestination().getToAddresses().get(0));
+    var firstTemplate = firstRequest.getContent().getTemplate();
+    assertEquals("please-wait", firstTemplate.getTemplateName());
+    assertTrue(firstTemplate.getTemplateData().contains(subscriptionDetails.email()));
+    assertEquals("test@email.local", firstRequest.getFromEmailAddress());
+
+    var secondRequest = requests.get(1);
+    assertEquals("test@email.local", secondRequest.getDestination().getToAddresses().get(0));
+    var secondTemplate = secondRequest.getContent().getTemplate();
+    assertEquals("please-approve", secondTemplate.getTemplateName());
+    assertTrue(
+        secondTemplate.getTemplateData().contains(savedSubscription.getOwnerConfirmationToken()));
+    assertTrue(secondTemplate.getTemplateData().contains(subscriptionDetails.email()));
+    assertEquals("test@email.local", secondRequest.getFromEmailAddress());
   }
 
   @Test
-  void updateSubscriptionShouldRespondWithNoContentOnValidOwnerToken() throws Exception {
+  void updateSubscriptionShouldRespondWithNoContentAndSendEmailOnValidOwnerToken()
+      throws Exception {
     givenFullSubscriptionDetails();
     givenAnExistingSubscription(
         subscriptionDetails.email(),
@@ -270,6 +302,15 @@ public class SubscriptionControllerTests {
     assertTrue(savedSubscription.getConfirmedByUser());
     assertTrue(savedSubscription.getConfirmedByOwner());
     assertEquals(0, savedSubscription.getNumTokenErrors());
+
+    verify(emailClient).sendEmail(captor.capture());
+    var request = captor.getValue();
+    assertEquals(subscriptionDetails.email(), request.getDestination().getToAddresses().get(0));
+    var template = request.getContent().getTemplate();
+    assertEquals("first-cv", template.getTemplateName());
+    assertTrue(template.getTemplateData().contains(savedSubscription.getUserUnsubscribeToken()));
+    assertTrue(template.getTemplateData().contains(subscriptionDetails.email()));
+    assertEquals("test@email.local", request.getFromEmailAddress());
   }
 
   @Test

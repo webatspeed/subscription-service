@@ -36,6 +36,43 @@ public class Mailer {
     email(mailConfiguration.getDefaultSender(), to, template);
   }
 
+  public void emailPleaseWait(String to) throws JsonProcessingException {
+    var templateData = Map.of("username", to);
+    var template =
+        new Template()
+            .withTemplateName("please-wait")
+            .withTemplateData(mapper.writeValueAsString(templateData));
+
+    email(mailConfiguration.getDefaultSender(), to, template);
+  }
+
+  public void emailPleaseApprove(String username, String token) throws JsonProcessingException {
+    var templateData =
+        Map.of(
+            "token", token,
+            "username", username);
+    var template =
+        new Template()
+            .withTemplateName("please-approve")
+            .withTemplateData(mapper.writeValueAsString(templateData));
+
+    email(mailConfiguration.getDefaultSender(), mailConfiguration.getDefaultSender(), template);
+  }
+
+  public void emailFirstCv(String to, String token) throws JsonProcessingException {
+    var templateData =
+        Map.of(
+            "token", token,
+            "username", to);
+
+    var template =
+        new Template()
+            .withTemplateName("first-cv")
+            .withTemplateData(mapper.writeValueAsString(templateData));
+
+    email(mailConfiguration.getDefaultSender(), to, template);
+  }
+
   private void email(String from, String to, Template template) {
     var content = new EmailContent().withTemplate(template);
     var destination = new Destination().withToAddresses(to);
