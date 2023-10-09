@@ -2,14 +2,13 @@ package com.webatspeed.subscription.service;
 
 import com.amazonaws.services.simpleemailv2.AmazonSimpleEmailServiceV2;
 import com.amazonaws.services.simpleemailv2.model.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webatspeed.subscription.config.MailConfiguration;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -22,55 +21,50 @@ public class Mailer {
 
   private final ObjectMapper mapper;
 
-  public void emailSignUpConfirmRequest(String to, String token) throws JsonProcessingException {
-    var templateData =
+  public void emailPleaseConfirm(String to, String token) {
+    var args =
         Map.of(
             "token", token,
             "username", to);
-
-    var template =
-        new Template()
-            .withTemplateName("please-confirm")
-            .withTemplateData(mapper.writeValueAsString(templateData));
+    var templateData = marshall(args);
+    var template = new Template().withTemplateName("please-confirm").withTemplateData(templateData);
 
     email(mailConfiguration.getDefaultSender(), to, template);
   }
 
-  public void emailPleaseWait(String to) throws JsonProcessingException {
-    var templateData = Map.of("username", to);
-    var template =
-        new Template()
-            .withTemplateName("please-wait")
-            .withTemplateData(mapper.writeValueAsString(templateData));
+  public void emailPleaseWait(String to) {
+    var args = Map.of("username", to);
+    var templateData = marshall(args);
+    var template = new Template().withTemplateName("please-wait").withTemplateData(templateData);
 
     email(mailConfiguration.getDefaultSender(), to, template);
   }
 
-  public void emailPleaseApprove(String username, String token) throws JsonProcessingException {
-    var templateData =
+  public void emailPleaseApprove(String username, String token) {
+    var args =
         Map.of(
             "token", token,
             "username", username);
-    var template =
-        new Template()
-            .withTemplateName("please-approve")
-            .withTemplateData(mapper.writeValueAsString(templateData));
+    var templateData = marshall(args);
+    var template = new Template().withTemplateName("please-approve").withTemplateData(templateData);
 
     email(mailConfiguration.getDefaultSender(), mailConfiguration.getDefaultSender(), template);
   }
 
-  public void emailFirstCv(String to, String token) throws JsonProcessingException {
-    var templateData =
+  public void emailFirstCv(String to, String token) {
+    var args =
         Map.of(
             "token", token,
             "username", to);
-
-    var template =
-        new Template()
-            .withTemplateName("first-cv")
-            .withTemplateData(mapper.writeValueAsString(templateData));
+    var templateData = marshall(args);
+    var template = new Template().withTemplateName("first-cv").withTemplateData(templateData);
 
     email(mailConfiguration.getDefaultSender(), to, template);
+  }
+
+  @SneakyThrows
+  private String marshall(Map<String, String> args) {
+    return mapper.writeValueAsString(args);
   }
 
   private void email(String from, String to, Template template) {

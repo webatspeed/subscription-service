@@ -2,13 +2,11 @@ package com.webatspeed.subscription;
 
 import static org.springframework.http.HttpStatus.*;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.webatspeed.subscription.config.MailConfiguration;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.exception.FalseTokenException;
 import com.webatspeed.subscription.exception.UserAlreadyExistsException;
 import com.webatspeed.subscription.exception.UserUnknownOrLockedException;
-import com.webatspeed.subscription.service.Mailer;
 import com.webatspeed.subscription.service.Subscriber;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,45 +28,33 @@ public class SubscriptionController {
 
   private final Subscriber subscriber;
 
-  private final Mailer mailer;
-
   private final MailConfiguration configuration;
 
   @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<?> createSubscription(@RequestBody @Valid final SubscriptionDetails details)
-      throws JsonProcessingException {
+  public ResponseEntity<?> createSubscription(
+      @RequestBody @Valid final SubscriptionDetails details) {
     if (repository.existsByEmail(details.email())) {
       throw new UserAlreadyExistsException();
     }
 
     var subscription = mapper.subscriptionOf(details);
     repository.save(subscription);
-    mailer.emailSignUpConfirmRequest(
-        subscription.getEmail(), subscription.getUserConfirmationToken());
+    subscriber.initiateToken(subscription);
 
     return ResponseEntity.status(CREATED).build();
   }
 
   @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<?> updateSubscription(@RequestBody @Valid final SubscriptionDetails details)
-      throws JsonProcessingException {
+  public ResponseEntity<?> updateSubscription(
+      @RequestBody @Valid final SubscriptionDetails details) {
     if (!StringUtils.hasText(details.token())) {
       throw new FalseTokenException();
     }
 
-    var subscription =
-        repository
-            .findByEmailAndNumTokenErrorsLessThan(details.email(), configuration.getMaxErrors())
-            .map(s -> subscriber.applyUpdateToken(s, details.token()))
-            .orElseThrow(UserUnknownOrLockedException::new);
-
-    var email = subscription.getEmail();
-    if (subscription.getConfirmedByOwner()) {
-      mailer.emailFirstCv(email, subscription.getUserUnsubscribeToken());
-    } else if (subscription.getConfirmedByUser()) {
-      mailer.emailPleaseWait(email);
-      mailer.emailPleaseApprove(email, subscription.getOwnerConfirmationToken());
-    }
+    repository
+        .findByEmailAndNumTokenErrorsLessThan(details.email(), configuration.getMaxErrors())
+        .map(s -> subscriber.applyUpdateToken(s, details.token()))
+        .orElseThrow(UserUnknownOrLockedException::new);
 
     return ResponseEntity.status(NO_CONTENT).build();
   }
