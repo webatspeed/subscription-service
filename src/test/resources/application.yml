@@ -17,6 +17,9 @@ logging:
   level:
     de.flapdoodle.embed.mongo.spring.autoconfigure: off
     de.flapdoodle.embed.mongo.runtime: off
+security:
+  cors:
+    origin-url: ${CORS_ORIGIN:http://localhost:3000}
 spring:
   data:
     mongodb:

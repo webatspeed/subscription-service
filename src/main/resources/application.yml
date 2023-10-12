@@ -8,6 +8,9 @@ cloud:
 email:
   default-sender: ${EMAIL:}
   max-errors: ${MAX_ERRORS:3}
+security:
+  cors:
+    origin-url: ${CORS_ORIGIN:http://localhost:3000}
 spring:
   data:
     mongodb:
