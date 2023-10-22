@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/v1/subscription")
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "${security.cors.origin-url}")
+@CrossOrigin(originPatterns = "${security.cors.origin-url}")
 public class SubscriptionController {
 
   private final SubscriptionRepository repository;
