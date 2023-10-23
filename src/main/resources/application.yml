@@ -1,10 +1,11 @@
 cloud:
   aws:
     credentials:
-      access-key: ${SES_USER:}
-      secret-key: ${SES_PASS:}
+      access-key: ${AWS_ACCESS_KEY:}
+      secret-key: ${AWS_SECRET_KEY:}
     region:
-      static: ${SES_REGION:eu-central-1}
+      static: ${AWS_DEFAULT_REGION:}
+      auto: false
 email:
   default-sender: ${EMAIL:}
   max-errors: ${MAX_ERRORS:3}

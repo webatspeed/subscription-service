@@ -3,15 +3,15 @@
 ### Mandatory Arguments
 
 ```bash
-SES_USER  // an AWS SES access key
-SES_PASS  // an AWS SES secret key
-EMAIL     // default sender email address
+AWS_ACCESS_KEY      // an AWS SES access key
+AWS_SECRET_KEY      // an AWS SES secret key
+AWS_DEFAULT_REGION  // an AWS SES region, e.g.: eu-central-1
+EMAIL               // default sender email address
 ```
 
 ### Optional Arguments
 
 ```bash
-SES_REGION  // an AWS SES region, default: eu-central-1
 MAX_ERRORS  // number of errors until processing is suppressed, default: 3
 CORS_ORIGIN // allowed request origin (pattern), default: "http://localhost:3000"
 MONGO_HOST  // MongoDB host, default: localhost
