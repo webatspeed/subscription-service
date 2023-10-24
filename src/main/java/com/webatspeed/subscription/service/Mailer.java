@@ -74,6 +74,7 @@ public class Mailer {
         new SendEmailRequest()
             .withDestination(destination)
             .withContent(content)
+            .withReplyToAddresses(from)
             .withFromEmailAddress(from);
 
     try {

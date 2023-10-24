@@ -130,6 +130,8 @@ public class SubscriptionControllerTests {
     assertTrue(template.getTemplateData().contains(subscriptionSaved.getUserConfirmationToken()));
     assertTrue(template.getTemplateData().contains(subscriptionDetails.email()));
     assertEquals("test@email.local", request.getFromEmailAddress());
+    assertEquals(1, request.getReplyToAddresses().size());
+    assertEquals("test@email.local", request.getReplyToAddresses().get(0));
   }
 
   @Test
@@ -267,6 +269,8 @@ public class SubscriptionControllerTests {
     assertEquals("please-wait", firstTemplate.getTemplateName());
     assertTrue(firstTemplate.getTemplateData().contains(subscriptionDetails.email()));
     assertEquals("test@email.local", firstRequest.getFromEmailAddress());
+    assertEquals(1, firstRequest.getReplyToAddresses().size());
+    assertEquals("test@email.local", firstRequest.getReplyToAddresses().get(0));
 
     var secondRequest = requests.get(1);
     assertEquals("test@email.local", secondRequest.getDestination().getToAddresses().get(0));
@@ -276,6 +280,8 @@ public class SubscriptionControllerTests {
         secondTemplate.getTemplateData().contains(savedSubscription.getOwnerConfirmationToken()));
     assertTrue(secondTemplate.getTemplateData().contains(subscriptionDetails.email()));
     assertEquals("test@email.local", secondRequest.getFromEmailAddress());
+    assertEquals(1, secondRequest.getReplyToAddresses().size());
+    assertEquals("test@email.local", secondRequest.getReplyToAddresses().get(0));
   }
 
   @Test
@@ -312,6 +318,8 @@ public class SubscriptionControllerTests {
     assertTrue(template.getTemplateData().contains(savedSubscription.getUserUnsubscribeToken()));
     assertTrue(template.getTemplateData().contains(subscriptionDetails.email()));
     assertEquals("test@email.local", request.getFromEmailAddress());
+    assertEquals(1, request.getReplyToAddresses().size());
+    assertEquals("test@email.local", request.getReplyToAddresses().get(0));
   }
 
   @Test
