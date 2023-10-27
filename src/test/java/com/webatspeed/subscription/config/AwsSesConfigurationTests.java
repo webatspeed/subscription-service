@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class AwsSesConfigurationTests {
 
   private static final Faker FAKER = new Faker();
+
   private Validator validator;
 
   private AwsSesConfiguration config;

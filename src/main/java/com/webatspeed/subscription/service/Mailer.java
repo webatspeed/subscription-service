@@ -1,12 +1,19 @@
 package com.webatspeed.subscription.service;
 
+import static com.webatspeed.subscription.service.TemplateName.*;
+
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.simpleemailv2.AmazonSimpleEmailServiceV2;
 import com.amazonaws.services.simpleemailv2.model.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.webatspeed.subscription.SubscriptionMapper;
 import com.webatspeed.subscription.config.MailConfiguration;
-import java.util.Map;
+import com.webatspeed.subscription.exception.EmailSendException;
+import jakarta.mail.MessagingException;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMultipart;
+import java.io.IOException;
+import java.util.Properties;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -15,60 +22,70 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class Mailer {
 
-  private final AmazonSimpleEmailServiceV2 client;
+  private final AmazonSimpleEmailServiceV2 emailClient;
+
+  private final AmazonS3 storageClient;
 
   private final MailConfiguration mailConfiguration;
 
-  private final ObjectMapper mapper;
+  private final SubscriptionMapper mapper;
 
   public void emailPleaseConfirm(String to, String token) {
-    var args =
-        Map.of(
-            "token", token,
-            "username", to);
-    var templateData = marshall(args);
-    var template = new Template().withTemplateName("please-confirm").withTemplateData(templateData);
-
+    var template = mapper.templateOf(to, token, PLEASE_CONFIRM);
     email(mailConfiguration.getDefaultSender(), to, template);
   }
 
   public void emailPleaseWait(String to) {
-    var args = Map.of("username", to);
-    var templateData = marshall(args);
-    var template = new Template().withTemplateName("please-wait").withTemplateData(templateData);
-
+    var template = mapper.templateOf(to, PLEASE_WAIT);
     email(mailConfiguration.getDefaultSender(), to, template);
   }
 
   public void emailPleaseApprove(String username, String token) {
-    var args =
-        Map.of(
-            "token", token,
-            "username", username);
-    var templateData = marshall(args);
-    var template = new Template().withTemplateName("please-approve").withTemplateData(templateData);
-
+    var template = mapper.templateOf(username, token, PLEASE_APPROVE);
     email(mailConfiguration.getDefaultSender(), mailConfiguration.getDefaultSender(), template);
   }
 
   public void emailFirstCv(String to, String token) {
-    var args =
-        Map.of(
-            "token", token,
-            "username", to);
-    var templateData = marshall(args);
-    var template = new Template().withTemplateName("first-cv").withTemplateData(templateData);
+    var renderRequest = mapper.renderRequestOf(to, token, FIRST_CV);
+    var renderedTemplate = emailClient.testRenderEmailTemplate(renderRequest).getRenderedTemplate();
+    var templateRequest = mapper.templateRequestOf(FIRST_CV);
+    var subject = emailClient.getEmailTemplate(templateRequest).getTemplateContent().getSubject();
 
-    email(mailConfiguration.getDefaultSender(), to, template);
-  }
-
-  @SneakyThrows
-  private String marshall(Map<String, String> args) {
-    return mapper.writeValueAsString(args);
+    try {
+      email(mailConfiguration.getDefaultSender(), to, subject, renderedTemplate);
+    } catch (MessagingException | IOException e) {
+      throw new EmailSendException(e);
+    }
   }
 
   private void email(String from, String to, Template template) {
     var content = new EmailContent().withTemplate(template);
+    emailContent(from, to, content);
+  }
+
+  private void email(String from, String to, String subject, String renderedTemplate)
+      throws MessagingException, IOException {
+    var session = Session.getDefaultInstance(new Properties());
+
+    var content = new MimeMultipart();
+    var textAndHtmlPart = mapper.bodyPartOf(renderedTemplate, session);
+    content.addBodyPart(textAndHtmlPart);
+
+    var listRequest = mapper.listRequestOf(mailConfiguration.getAttachmentBucket());
+    var listResult = storageClient.listObjectsV2(listRequest);
+    for (var summary : listResult.getObjectSummaries()) {
+      var object = storageClient.getObject(summary.getBucketName(), summary.getKey());
+      var attachmentPart = mapper.bodyPartOf(object, summary);
+      content.addBodyPart(attachmentPart);
+    }
+
+    var rawMessage = mapper.rawMessageOf(from, to, subject, session, content);
+    var emailContent = new EmailContent().withRaw(rawMessage);
+
+    emailContent(from, to, emailContent);
+  }
+
+  private void emailContent(String from, String to, EmailContent content) {
     var destination = new Destination().withToAddresses(to);
     var request =
         new SendEmailRequest()
@@ -78,9 +95,9 @@ public class Mailer {
             .withFromEmailAddress(from);
 
     try {
-      client.sendEmail(request);
+      emailClient.sendEmail(request);
     } catch (Exception e) {
-      log.error("The email was not sent. Error message: {}", e.getMessage());
+      throw new EmailSendException(e);
     }
   }
 }

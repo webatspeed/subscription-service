@@ -7,6 +7,7 @@ cloud:
       static: ${AWS_DEFAULT_REGION:}
       auto: false
 email:
+  attachment-bucket: ${BUCKET_NAME:}
   default-sender: ${EMAIL:}
   max-errors: ${MAX_ERRORS:3}
 security:

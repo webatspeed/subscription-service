@@ -1,5 +1,7 @@
 package com.webatspeed.subscription.controller;
 
+import com.amazonaws.AmazonServiceException;
+import com.webatspeed.subscription.exception.EmailSendException;
 import com.webatspeed.subscription.exception.FalseTokenException;
 import com.webatspeed.subscription.exception.UserAlreadyExistsException;
 import com.webatspeed.subscription.exception.UserUnknownOrLockedException;
@@ -29,5 +31,19 @@ public class SubscriptionExceptionAdvice {
   @ExceptionHandler(UserAlreadyExistsException.class)
   public ProblemDetail handleAlreadyExistsException(final UserAlreadyExistsException exception) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+  }
+
+  @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+  @ExceptionHandler(EmailSendException.class)
+  public ProblemDetail handleEmailSendException(final EmailSendException exception) {
+    return ProblemDetail.forStatusAndDetail(
+        HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
+  }
+
+  @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+  @ExceptionHandler(AmazonServiceException.class)
+  public ProblemDetail handleAmazonServiceException(final AmazonServiceException exception) {
+    return ProblemDetail.forStatusAndDetail(
+        HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
   }
 }

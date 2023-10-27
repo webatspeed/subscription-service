@@ -5,12 +5,14 @@ cloud:
       secret-key: test-secret-key
     region:
       static: test-region
+      auto: false
 de:
   flapdoodle:
     mongodb:
       embedded:
         version: 7.0.0-rc8
 email:
+  attachment-bucket: attachments
   default-sender: test@email.local
   max-errors: 3
 logging:

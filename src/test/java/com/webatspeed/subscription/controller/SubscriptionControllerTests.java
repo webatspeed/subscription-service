@@ -5,12 +5,21 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.ListObjectsV2Request;
+import com.amazonaws.services.s3.model.ListObjectsV2Result;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.simpleemailv2.AmazonSimpleEmailServiceV2;
-import com.amazonaws.services.simpleemailv2.model.SendEmailRequest;
+import com.amazonaws.services.simpleemailv2.model.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webatspeed.subscription.SubscriptionRepository;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.model.Subscription;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import net.datafaker.Faker;
 import org.instancio.Instancio;
@@ -25,6 +34,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.ResourceUtils;
+import org.springframework.util.StringUtils;
 
 @AutoConfigureMockMvc
 @SpringBootTest
@@ -39,17 +50,22 @@ public class SubscriptionControllerTests {
 
   @MockBean private AmazonSimpleEmailServiceV2 emailClient;
 
+  @MockBean private AmazonS3 storageClient;
+
   @Captor ArgumentCaptor<SendEmailRequest> captor;
 
   private SubscriptionDetails subscriptionDetails;
 
   private Subscription subscription;
 
+  private ListObjectsV2Result objectsResult;
+
   @AfterEach
   void cleanUp() {
     subscription = null;
     subscriptionDetails = null;
     subscriptionRepository.deleteAll();
+    objectsResult = null;
   }
 
   @Test
@@ -204,6 +220,27 @@ public class SubscriptionControllerTests {
   }
 
   @Test
+  void updateSubscriptionShouldRespondWithInternalErrorOnAmazonConnectionError() throws Exception {
+    givenFullSubscriptionDetails();
+    givenAnExistingSubscription(
+        subscriptionDetails.email(),
+        UUID.randomUUID().toString(),
+        subscriptionDetails.token(),
+        UUID.randomUUID().toString());
+    givenRenderedEmailTemplateError();
+
+    assertEquals(1, subscriptionRepository.count());
+    mockMvc
+        .perform(
+            put("/v1/subscription")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(subscriptionDetails)))
+        .andExpect(status().isInternalServerError());
+
+    verifyNoInteractions(storageClient);
+  }
+
+  @Test
   void updateSubscriptionShouldRespondWithNotFoundAfterThreeFails() throws Exception {
     givenFullSubscriptionDetails();
     var token = UUID.randomUUID().toString();
@@ -293,6 +330,10 @@ public class SubscriptionControllerTests {
         UUID.randomUUID().toString(),
         subscriptionDetails.token(),
         UUID.randomUUID().toString());
+    givenRenderedEmailTemplateResult();
+    givenGetEmailTemplateResult();
+    givenListObjectsResult();
+    givenGetObjectsResult();
 
     assertEquals(1, subscriptionRepository.count());
     mockMvc
@@ -313,10 +354,13 @@ public class SubscriptionControllerTests {
     verify(emailClient).sendEmail(captor.capture());
     var request = captor.getValue();
     assertEquals(subscriptionDetails.email(), request.getDestination().getToAddresses().get(0));
-    var template = request.getContent().getTemplate();
-    assertEquals("first-cv", template.getTemplateName());
-    assertTrue(template.getTemplateData().contains(savedSubscription.getUserUnsubscribeToken()));
-    assertTrue(template.getTemplateData().contains(subscriptionDetails.email()));
+    var rawMessage = request.getContent().getRaw();
+    var content = StandardCharsets.UTF_8.decode(rawMessage.getData()).toString();
+    assertTrue(content.contains("Content1"));
+    assertTrue(content.contains("Content2"));
+    assertEquals(
+        objectsResult.getObjectSummaries().size(),
+        StringUtils.countOccurrencesOf(content, "application/pdf"));
     assertEquals("test@email.local", request.getFromEmailAddress());
     assertEquals(1, request.getReplyToAddresses().size());
     assertEquals("test@email.local", request.getReplyToAddresses().get(0));
@@ -449,6 +493,10 @@ public class SubscriptionControllerTests {
   @Test
   void methodsShouldResultInCrudFlow() throws Exception {
     givenSubscriptionDetailsWithoutToken();
+    givenRenderedEmailTemplateResult();
+    givenGetEmailTemplateResult();
+    givenListObjectsResult();
+    givenGetObjectsResult();
 
     assertEquals(0, subscriptionRepository.count());
     mockMvc
@@ -552,5 +600,64 @@ public class SubscriptionControllerTests {
             .set(Select.field("version"), null)
             .create();
     subscriptionRepository.save(subscription);
+  }
+
+  private void givenRenderedEmailTemplateResult() {
+    var testRenderEmailTemplateResult =
+        new TestRenderEmailTemplateResult()
+            .withRenderedTemplate(
+                """
+                            Subject: A Subject
+                            MIME-Version: 1.0
+                            Content-Type: multipart/alternative;\s
+                            \tboundary="----=_Part_11286_1224453801.1698335693925"
+
+                            ------=_Part_11286_1224453801.1698335693925
+                            Content-Type: text/plain; charset=UTF-8
+                            Content-Transfer-Encoding: quoted-printable
+
+                            Content1
+
+                            ------=_Part_11286_1224453801.1698335693925
+                            Content-Type: text/html; charset=UTF-8
+                            Content-Transfer-Encoding: quoted-printable
+
+                            Content2
+
+                            ------=_Part_11286_1224453801.1698335693925--
+                            """);
+
+    when(emailClient.testRenderEmailTemplate(any(TestRenderEmailTemplateRequest.class)))
+        .thenReturn(testRenderEmailTemplateResult);
+  }
+
+  private void givenRenderedEmailTemplateError() {
+    when(emailClient.testRenderEmailTemplate(any(TestRenderEmailTemplateRequest.class)))
+        .thenThrow(new AmazonServiceException("error"));
+  }
+
+  private void givenGetEmailTemplateResult() {
+    var templateContent = new EmailTemplateContent().withSubject(FAKER.internet().emailSubject());
+    var getEmailTemplateResult = new GetEmailTemplateResult().withTemplateContent(templateContent);
+
+    when(emailClient.getEmailTemplate(any(GetEmailTemplateRequest.class)))
+        .thenReturn(getEmailTemplateResult);
+  }
+
+  private void givenListObjectsResult() {
+    objectsResult = Instancio.create(ListObjectsV2Result.class);
+
+    when(storageClient.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(objectsResult);
+  }
+
+  private void givenGetObjectsResult() throws FileNotFoundException {
+    var object = new S3Object();
+    var file = ResourceUtils.getFile("classpath:static/file.pdf");
+    object.setObjectContent(new FileInputStream(file));
+    var metadata = new ObjectMetadata();
+    metadata.setContentType("application/pdf");
+    object.setObjectMetadata(metadata);
+
+    when(storageClient.getObject(anyString(), anyString())).thenReturn(object);
   }
 }

@@ -20,4 +20,6 @@ public class MailConfiguration {
   @NotBlank @Email private String defaultSender;
 
   @NotNull @Positive private Integer maxErrors;
+
+  @NotBlank private String attachmentBucket;
 }
