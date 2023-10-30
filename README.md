@@ -13,11 +13,12 @@ EMAIL               // default sender email address
 ### Optional Arguments
 
 ```bash
-MAX_ERRORS  // number of errors till processing is suppressed, default: 3
-CORS_ORIGIN // allowed request origin (pattern), default: http://localhost:3000
-MONGO_HOST  // MongoDB host, default: localhost
-MONGO_PORT  // MongoDB port, default: 27017
-MONGO_DB    // MongoDB database name, default: subscription 
-MONGO_USER  // MongoDB user name, default: user
-MONGO_PASS  // MongoDB user password, default: pass
+AWS_EMAIL_RATE  // number of emails per second to send, default 10
+CORS_ORIGIN     // allowed request origin (pattern), default: http://localhost:3000
+MAX_ERRORS      // number of errors till processing is suppressed, default: 3
+MONGO_HOST      // MongoDB host, default: localhost
+MONGO_PORT      // MongoDB port, default: 27017
+MONGO_DB        // MongoDB database name, default: subscription 
+MONGO_USER      // MongoDB user name, default: user
+MONGO_PASS      // MongoDB user password, default: pass
 ```

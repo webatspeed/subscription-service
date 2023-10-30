@@ -4,6 +4,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import net.datafaker.Faker;
 import org.instancio.Instancio;
+import org.instancio.InstancioApi;
 import org.instancio.Select;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,6 @@ public class AwsSesConfigurationTests {
 
   @Test
   public void regionShouldNotBeNull() {
-    givenCredentials();
     givenNoRegion();
 
     var violations = validator.validate(config);
@@ -50,17 +50,6 @@ public class AwsSesConfigurationTests {
 
   @Test
   public void regionShouldNotBeEmpty() {
-    givenCredentials();
-    givenEmptyRegion();
-
-    var violations = validator.validate(config);
-
-    assertFalse(violations.isEmpty());
-  }
-
-  @Test
-  public void regionShouldBeEmpty() {
-    givenCredentials();
     givenEmptyRegion();
 
     var violations = validator.validate(config);
@@ -70,8 +59,7 @@ public class AwsSesConfigurationTests {
 
   @Test
   public void shouldBeValid() {
-    givenCredentials();
-    givenRegion();
+    givenValidConfig();
 
     var violations = validator.validate(config);
 
@@ -79,26 +67,23 @@ public class AwsSesConfigurationTests {
   }
 
   private void givenNoCredentials() {
-    config =
-        Instancio.of(AwsSesConfiguration.class).set(Select.field("credentials"), null).create();
-  }
-
-  private void givenCredentials() {
-    config = Instancio.create(AwsSesConfiguration.class);
+    config = validConfig().set(Select.field("credentials"), null).create();
   }
 
   private void givenNoRegion() {
-    config = Instancio.of(AwsSesConfiguration.class).set(Select.field("region"), null).create();
+    config = validConfig().set(Select.field("region"), null).create();
   }
 
   private void givenEmptyRegion() {
-    config = Instancio.of(AwsSesConfiguration.class).set(Select.field("region"), Map.of()).create();
+    config = validConfig().set(Select.field("region"), Map.of()).create();
   }
 
-  private void givenRegion() {
-    config =
-        Instancio.of(AwsSesConfiguration.class)
-            .set(Select.field("region"), Map.of("region", FAKER.aws().region()))
-            .create();
+  private void givenValidConfig() {
+    config = validConfig().create();
+  }
+
+  private static InstancioApi<AwsSesConfiguration> validConfig() {
+    return Instancio.of(AwsSesConfiguration.class)
+        .set(Select.field("region"), Map.of("region", FAKER.aws().region()));
   }
 }

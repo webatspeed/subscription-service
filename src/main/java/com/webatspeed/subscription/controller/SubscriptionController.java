@@ -12,6 +12,7 @@ import com.webatspeed.subscription.exception.UserUnknownOrLockedException;
 import com.webatspeed.subscription.service.Subscriber;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -45,6 +46,19 @@ public class SubscriptionController {
     subscriber.initiateToken(subscription);
 
     return ResponseEntity.status(CREATED).build();
+  }
+
+  @PostMapping(path = "/distribute")
+  public synchronized ResponseEntity<?> applySubscriptions() {
+    HttpStatus httpStatus;
+    if (subscriber.isDistributing()) {
+      httpStatus = LOCKED;
+    } else {
+      httpStatus = ACCEPTED;
+      subscriber.distribute();
+    }
+
+    return ResponseEntity.status(httpStatus).build();
   }
 
   @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)

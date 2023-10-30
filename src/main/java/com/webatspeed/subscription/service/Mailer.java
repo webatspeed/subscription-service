@@ -8,6 +8,7 @@ import com.amazonaws.services.simpleemailv2.model.*;
 import com.webatspeed.subscription.SubscriptionMapper;
 import com.webatspeed.subscription.config.MailConfiguration;
 import com.webatspeed.subscription.exception.EmailSendException;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMultipart;
@@ -45,7 +46,8 @@ public class Mailer {
     email(mailConfiguration.getDefaultSender(), mailConfiguration.getDefaultSender(), template);
   }
 
-  public void emailFirstCv(String to, String token) {
+  @RateLimiter(name = "ses")
+  public void emailCv(String to, String token) {
     var renderRequest = mapper.renderRequestOf(to, token, FIRST_CV);
     var renderedTemplate = emailClient.testRenderEmailTemplate(renderRequest).getRenderedTemplate();
     var templateRequest = mapper.templateRequestOf(FIRST_CV);

@@ -97,6 +97,30 @@ public class SubscriptionControllerSecurityTests {
         .andExpect(status().is2xxSuccessful());
   }
 
+  @Test
+  void applySubscriptionsShouldRespondWithForbiddenOnFalseOrigins() throws Exception {
+    givenAFalseOriginUrl();
+
+    mockMvc
+        .perform(
+            options("/v1/subscription/distribute")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Origin", originUrl))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void applySubscriptionsShouldRespondWithSuccessOnCorrectOrigins() throws Exception {
+    givenTheCorrectOriginUrl();
+
+    mockMvc
+        .perform(
+            options("/v1/subscription/distribute")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Origin", originUrl))
+        .andExpect(status().is2xxSuccessful());
+  }
+
   private void givenTheCorrectOriginUrl() {
     originUrl = "http://localhost:3000";
   }

@@ -3,16 +3,27 @@ package com.webatspeed.subscription.service;
 import com.webatspeed.subscription.SubscriptionRepository;
 import com.webatspeed.subscription.exception.FalseTokenException;
 import com.webatspeed.subscription.model.Subscription;
+import io.github.resilience4j.springboot3.ratelimiter.autoconfigure.RateLimiterProperties;
+import java.util.concurrent.Semaphore;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class Subscriber {
 
   private final SubscriptionRepository repository;
 
   private final Mailer mailer;
+
+  private final RateLimiterProperties rateLimiterProperties;
+
+  private final Semaphore distributionLock = new Semaphore(1);
 
   public void initiateToken(Subscription subscription) {
     mailer.emailPleaseConfirm(subscription.getEmail(), subscription.getUserConfirmationToken());
@@ -24,7 +35,7 @@ public class Subscriber {
     if (subscription.getConfirmedByUser()
         && token.equals(subscription.getOwnerConfirmationToken())) {
       subscription.setConfirmedByOwner(true);
-      mailer.emailFirstCv(email, subscription.getUserUnsubscribeToken());
+      mailer.emailCv(email, subscription.getUserUnsubscribeToken());
     } else if (token.equals(subscription.getUserConfirmationToken())) {
       subscription.setConfirmedByUser(true);
       mailer.emailPleaseWait(email);
@@ -51,5 +62,33 @@ public class Subscriber {
     }
 
     return subscription;
+  }
+
+  @Async
+  public void distribute() {
+    var pageIndex = 0;
+    var pageSize = rateLimiterProperties.getInstances().get("ses").getLimitForPeriod();
+    Page<Subscription> subscriptionPage;
+
+    try {
+      distributionLock.acquire();
+      do {
+        @SuppressWarnings("ConstantConditions")
+        var pageRequest = PageRequest.of(pageIndex, pageSize);
+        subscriptionPage = repository.findAllByConfirmedByOwnerIsTrue(pageRequest);
+        subscriptionPage
+            .getContent()
+            .forEach(s -> mailer.emailCv(s.getEmail(), s.getUserUnsubscribeToken()));
+        pageIndex++;
+      } while (subscriptionPage.hasNext());
+    } catch (InterruptedException e) {
+      log.error("Distribution interrupted", e);
+    } finally {
+      distributionLock.release();
+    }
+  }
+
+  public boolean isDistributing() {
+    return distributionLock.availablePermits() == 0;
   }
 }

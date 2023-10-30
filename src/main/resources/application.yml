@@ -10,6 +10,12 @@ email:
   attachment-bucket: ${BUCKET_NAME:}
   default-sender: ${EMAIL:}
   max-errors: ${MAX_ERRORS:3}
+resilience4j:
+  ratelimiter:
+    instances:
+      ses:
+        limit-for-period: ${AWS_EMAIL_RATE:10}
+        limit-refresh-period: 1s
 security:
   cors:
     origin-url: ${CORS_ORIGIN:http://localhost:3000}
