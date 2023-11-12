@@ -4,11 +4,14 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.*;
 import org.springframework.data.annotation.*;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Data
 @Document
+@CompoundIndexes({@CompoundIndex(def = "{'email' : 1, 'numTokenErrors': 1}")})
 public class Subscription {
 
   @Id private String id;
@@ -26,7 +29,7 @@ public class Subscription {
 
   private Boolean confirmedByUser = false;
 
-  private Boolean confirmedByOwner = false;
+  @Indexed private Boolean confirmedByOwner = false;
 
   @CreatedDate @EqualsAndHashCode.Exclude private Instant createdAt;
 
