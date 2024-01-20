@@ -33,17 +33,17 @@ public class Mailer {
 
   public void emailPleaseConfirm(String to, String token) {
     var template = mapper.templateOf(to, token, PLEASE_CONFIRM);
-    email(mailConfiguration.getDefaultSender(), to, template);
+    email(to, template);
   }
 
   public void emailPleaseWait(String to) {
     var template = mapper.templateOf(to, PLEASE_WAIT);
-    email(mailConfiguration.getDefaultSender(), to, template);
+    email(to, template);
   }
 
   public void emailPleaseApprove(String username, String token) {
     var template = mapper.templateOf(username, token, PLEASE_APPROVE);
-    email(mailConfiguration.getDefaultSender(), mailConfiguration.getDefaultSender(), template);
+    email(mailConfiguration.getDefaultSender(), template);
   }
 
   @RateLimiter(name = "ses")
@@ -54,18 +54,19 @@ public class Mailer {
     var subject = emailClient.getEmailTemplate(templateRequest).getTemplateContent().getSubject();
 
     try {
-      email(mailConfiguration.getDefaultSender(), to, subject, renderedTemplate);
+      email(to, subject, renderedTemplate);
     } catch (MessagingException | IOException e) {
       throw new EmailSendException(e);
     }
   }
 
-  private void email(String from, String to, Template template) {
+  private void email(String to, Template template) {
     var content = new EmailContent().withTemplate(template);
+    var from = mailConfiguration.getDefaultSender();
     emailContent(from, to, content);
   }
 
-  private void email(String from, String to, String subject, String renderedTemplate)
+  private void email(String to, String subject, String renderedTemplate)
       throws MessagingException, IOException {
     var session = Session.getDefaultInstance(new Properties());
 
@@ -81,6 +82,7 @@ public class Mailer {
       content.addBodyPart(attachmentPart);
     }
 
+    var from = mailConfiguration.getDefaultSender();
     var rawMessage = mapper.rawMessageOf(from, to, subject, session, content);
     var emailContent = new EmailContent().withRaw(rawMessage);
 
