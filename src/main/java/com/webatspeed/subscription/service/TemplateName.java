@@ -4,7 +4,8 @@ public enum TemplateName {
   PLEASE_CONFIRM("please-confirm"),
   PLEASE_WAIT("please-wait"),
   PLEASE_APPROVE("please-approve"),
-  FIRST_CV("first-cv");
+  FIRST_CV("first-cv"),
+  UPDATED_CV("updated-cv");
 
   private final String label;
 

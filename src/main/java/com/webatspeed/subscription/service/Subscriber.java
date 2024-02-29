@@ -35,7 +35,7 @@ public class Subscriber {
     if (subscription.getConfirmedByUser()
         && token.equals(subscription.getOwnerConfirmationToken())) {
       subscription.setConfirmedByOwner(true);
-      mailer.emailCv(email, subscription.getUserUnsubscribeToken());
+      mailer.emailCv(email, subscription.getUserUnsubscribeToken(), true);
     } else if (token.equals(subscription.getUserConfirmationToken())) {
       subscription.setConfirmedByUser(true);
       mailer.emailPleaseWait(email);
@@ -78,7 +78,7 @@ public class Subscriber {
         subscriptionPage = repository.findAllByConfirmedByOwnerIsTrue(pageRequest);
         subscriptionPage
             .getContent()
-            .forEach(s -> mailer.emailCv(s.getEmail(), s.getUserUnsubscribeToken()));
+            .forEach(s -> mailer.emailCv(s.getEmail(), s.getUserUnsubscribeToken(), false));
         pageIndex++;
       } while (subscriptionPage.hasNext());
     } catch (InterruptedException e) {

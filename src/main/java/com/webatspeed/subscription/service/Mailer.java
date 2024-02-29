@@ -47,10 +47,11 @@ public class Mailer {
   }
 
   @RateLimiter(name = "ses")
-  public void emailCv(String to, String token) {
-    var renderRequest = mapper.renderRequestOf(to, token, FIRST_CV);
+  public void emailCv(String to, String token, boolean isFirst) {
+    var templateName = isFirst ? FIRST_CV : UPDATED_CV;
+    var renderRequest = mapper.renderRequestOf(to, token, templateName);
     var renderedTemplate = emailClient.testRenderEmailTemplate(renderRequest).getRenderedTemplate();
-    var templateRequest = mapper.templateRequestOf(FIRST_CV);
+    var templateRequest = mapper.templateRequestOf(templateName);
     var subject = emailClient.getEmailTemplate(templateRequest).getTemplateContent().getSubject();
 
     try {
@@ -100,7 +101,7 @@ public class Mailer {
 
     try {
       emailClient.sendEmail(request);
-    } catch (Exception e) {
+    } catch (AmazonSimpleEmailServiceV2Exception e) {
       throw new EmailSendException(e);
     }
   }
