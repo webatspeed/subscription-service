@@ -1,7 +1,7 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.2.2'
-    id 'io.spring.dependency-management' version '1.1.4'
+    id 'org.springframework.boot' version '3.2.6'
+    id 'io.spring.dependency-management' version '1.1.5'
     id 'com.adarshr.test-logger' version '3.2.0'
 }
 
@@ -27,29 +27,24 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
-    constraints {
-        implementation('com.amazonaws:aws-java-sdk-s3:1.12.662') {
-            because 'version <=1.12.260 pulled from starter-aws has vulnerabilities'
-        }
-    }
-    implementation 'com.amazonaws:aws-java-sdk-sesv2:1.12.662'
+    implementation 'io.awspring.cloud:spring-cloud-starter-aws:2.4.4'
+    implementation 'com.amazonaws:aws-java-sdk-sesv2:1.12.744'
     implementation 'com.sun.mail:jakarta.mail:2.0.1'
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
-    implementation 'org.springframework.boot:spring-boot-starter-aop:3.2.2'
+    implementation 'org.springframework.boot:spring-boot-starter-aop:3.2.6'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'net.datafaker:datafaker:2.1.0'
+    testImplementation 'net.datafaker:datafaker:2.2.2'
     testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo.spring31x:4.9.3'
     constraints {
-        testImplementation('org.apache.commons:commons-compress:1.26.0') {
-            because 'version <=1.23.0 pulled from embedded mongo has vulnerabilities'
+        testImplementation('org.apache.commons:commons-compress:1.26.2') {
+            because 'version <=1.25.0 pulled from embedded mongo has vulnerabilities'
         }
     }
-    testImplementation 'org.instancio:instancio-junit:4.3.1'
-    testImplementation 'org.awaitility:awaitility:4.2.0'
+    testImplementation 'org.instancio:instancio-junit:4.8.0'
+    testImplementation 'org.awaitility:awaitility:4.2.1'
 }
 
 tasks.named('test') {
