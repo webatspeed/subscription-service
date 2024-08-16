@@ -1,11 +1,5 @@
 package com.webatspeed.subscription.controller;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsV2Request;
-import com.amazonaws.services.s3.model.ListObjectsV2Result;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webatspeed.subscription.SubscriptionRepository;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
@@ -25,12 +19,19 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sesv2.model.*;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -52,7 +53,8 @@ public class SubscriptionControllerTests {
   @MockBean
   private SesV2Client emailClient;
 
-  @MockBean private AmazonS3 storageClient;
+  @MockBean
+  private S3Client storageClient;
 
   @Captor ArgumentCaptor<SendEmailRequest> captor;
 
@@ -60,14 +62,14 @@ public class SubscriptionControllerTests {
 
   private Subscription subscription;
 
-  private ListObjectsV2Result objectsResult;
+  private ListObjectsV2Response objectsResponse;
 
   @AfterEach
   void cleanUp() {
     subscription = null;
     subscriptionDetails = null;
     subscriptionRepository.deleteAll();
-    objectsResult = null;
+    objectsResponse = null;
   }
 
   @Test
@@ -334,7 +336,7 @@ public class SubscriptionControllerTests {
         UUID.randomUUID().toString());
     givenRenderedEmailTemplateResult();
     givenGetEmailTemplateResult();
-    givenListObjectsResult();
+    givenListObjectsResponse();
     givenGetObjectsResult();
 
     assertEquals(1, subscriptionRepository.count());
@@ -361,7 +363,7 @@ public class SubscriptionControllerTests {
     assertTrue(content.contains("Content1"));
     assertTrue(content.contains("Content2"));
     assertEquals(
-        objectsResult.getObjectSummaries().size(),
+            objectsResponse.contents().size(),
         StringUtils.countOccurrencesOf(content, "application/pdf"));
     assertEquals("test@email.local", request.fromEmailAddress());
     assertEquals(1, request.replyToAddresses().size());
@@ -497,7 +499,7 @@ public class SubscriptionControllerTests {
     givenSubscriptionDetailsWithoutToken();
     givenRenderedEmailTemplateResult();
     givenGetEmailTemplateResult();
-    givenListObjectsResult();
+    givenListObjectsResponse();
     givenGetObjectsResult();
 
     assertEquals(0, subscriptionRepository.count());
@@ -609,24 +611,24 @@ public class SubscriptionControllerTests {
             TestRenderEmailTemplateResponse.builder()
                     .renderedTemplate(
                 """
-                            Subject: A Subject
-                            MIME-Version: 1.0
-                            Content-Type: multipart/alternative;\s
-                            \tboundary="----=_Part_11286_1224453801.1698335693925"
+                        Subject: A Subject
+                        MIME-Version: 1.0
+                        Content-Type: multipart/alternative;\s
+                        \tboundary="----=_Part_11286_1224453801.1698335693925"
 
-                            ------=_Part_11286_1224453801.1698335693925
-                            Content-Type: text/plain; charset=UTF-8
-                            Content-Transfer-Encoding: quoted-printable
+                        ------=_Part_11286_1224453801.1698335693925
+                        Content-Type: text/plain; charset=UTF-8
+                        Content-Transfer-Encoding: quoted-printable
 
-                            Content1
+                        Content1
 
-                            ------=_Part_11286_1224453801.1698335693925
-                            Content-Type: text/html; charset=UTF-8
-                            Content-Transfer-Encoding: quoted-printable
+                        ------=_Part_11286_1224453801.1698335693925
+                        Content-Type: text/html; charset=UTF-8
+                        Content-Transfer-Encoding: quoted-printable
 
-                            Content2
+                        Content2
 
-                            ------=_Part_11286_1224453801.1698335693925--
+                        ------=_Part_11286_1224453801.1698335693925--
                         """)
                     .build();
 
@@ -636,7 +638,7 @@ public class SubscriptionControllerTests {
 
   private void givenRenderedEmailTemplateError() {
     when(emailClient.testRenderEmailTemplate(any(TestRenderEmailTemplateRequest.class)))
-        .thenThrow(new AmazonServiceException("error"));
+            .thenThrow(AwsServiceException.builder().message("error").build());
   }
 
   private void givenGetEmailTemplateResult() {
@@ -647,20 +649,20 @@ public class SubscriptionControllerTests {
         .thenReturn(getEmailTemplateResult);
   }
 
-  private void givenListObjectsResult() {
-    objectsResult = Instancio.create(ListObjectsV2Result.class);
+  private void givenListObjectsResponse() {
+    objectsResponse = Instancio.create(ListObjectsV2Response.class);
 
-    when(storageClient.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(objectsResult);
+    when(storageClient.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(objectsResponse);
   }
 
-  private void givenGetObjectsResult() throws FileNotFoundException {
-    var object = new S3Object();
+  private void givenGetObjectsResult() throws IOException {
     var file = ResourceUtils.getFile("classpath:static/file.pdf");
-    object.setObjectContent(new FileInputStream(file));
-    var metadata = new ObjectMetadata();
-    metadata.setContentType("application/pdf");
-    object.setObjectMetadata(metadata);
+    var bytes = Files.readAllBytes(file.toPath());
+    var response = GetObjectResponse.builder()
+            .contentType(MediaType.APPLICATION_PDF_VALUE)
+            .build();
+    var objectBytes = ResponseBytes.fromByteArray(response, bytes);
 
-    when(storageClient.getObject(anyString(), anyString())).thenReturn(object);
+    when(storageClient.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(objectBytes);
   }
 }

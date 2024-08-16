@@ -1,8 +1,5 @@
 package com.webatspeed.subscription;
 
-import com.amazonaws.services.s3.model.ListObjectsV2Request;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.model.Subscription;
@@ -18,7 +15,11 @@ import jakarta.mail.util.ByteArrayDataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.sesv2.model.GetEmailTemplateRequest;
 import software.amazon.awssdk.services.sesv2.model.RawMessage;
 import software.amazon.awssdk.services.sesv2.model.Template;
@@ -90,17 +91,21 @@ public class SubscriptionMapper {
     return textAndHtmlPart;
   }
 
-  public MimeBodyPart bodyPartOf(S3Object object, S3ObjectSummary summary)
-      throws IOException, MessagingException {
-    var contentType = object.getObjectMetadata().getContentType();
-    var objContent = object.getObjectContent();
-    var dataSource = new ByteArrayDataSource(objContent, contentType);
+  public MimeBodyPart bodyPartOf(ResponseBytes<GetObjectResponse> objContent, String key) throws MessagingException {
+    var dataSource = new ByteArrayDataSource(objContent.asByteArray(), objContent.response().contentType());
 
     var attachmentPart = new MimeBodyPart();
     attachmentPart.setDataHandler(new DataHandler(dataSource));
-    attachmentPart.setFileName(summary.getKey());
+    attachmentPart.setFileName(key);
 
     return attachmentPart;
+  }
+
+  public GetObjectRequest getRequest(String bucket, String key) {
+    return GetObjectRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .build();
   }
 
   public RawMessage rawMessageOf(
@@ -120,6 +125,6 @@ public class SubscriptionMapper {
   }
 
   public ListObjectsV2Request listRequestOf(String bucketName) {
-    return new ListObjectsV2Request().withBucketName(bucketName);
+    return ListObjectsV2Request.builder().bucket(bucketName).build();
   }
 }

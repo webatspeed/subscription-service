@@ -1,10 +1,5 @@
 package com.webatspeed.subscription.service;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsV2Request;
-import com.amazonaws.services.s3.model.ListObjectsV2Result;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
 import com.webatspeed.subscription.SubscriptionRepository;
 import com.webatspeed.subscription.model.Subscription;
 import net.datafaker.Faker;
@@ -19,17 +14,22 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.util.ResourceUtils;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sesv2.model.*;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
@@ -44,24 +44,25 @@ public class SubscriberTests {
   @MockBean
   private SesV2Client emailClient;
 
-  @MockBean private AmazonS3 storageClient;
+  @MockBean
+  private S3Client storageClient;
 
-  private ListObjectsV2Result objectsResult;
+  private ListObjectsV2Response objectsResponse;
 
   @AfterEach
   void cleanUp() {
     subscriptionRepository.deleteAll();
-    objectsResult = null;
+    objectsResponse = null;
     await().until(() -> !subscriber.isDistributing());
   }
 
   @Test
-  void distributeShouldLock() throws FileNotFoundException {
+  void distributeShouldLock() throws IOException {
     givenSavedSubscriptions(1, true);
     givenDistributing();
     givenGetEmailTemplateResult();
     givenListObjectsResult();
-    givenGetObjectsResult();
+    givenGetObjectsResponse();
     givenRenderedEmailTemplateResult();
 
     subscriber.distribute();
@@ -86,13 +87,12 @@ public class SubscriberTests {
   }
 
   @Test
-  void distributeShouldEmailRateLimitedIfSubscriptionConfirmedByOwner()
-      throws FileNotFoundException {
+  void distributeShouldEmailRateLimitedIfSubscriptionConfirmedByOwner() throws IOException {
     var numberOfSubscriptions = FAKER.number().numberBetween(10, 19);
     givenSavedSubscriptions(numberOfSubscriptions, true);
     givenGetEmailTemplateResult();
     givenListObjectsResult();
-    givenGetObjectsResult();
+    givenGetObjectsResponse();
     givenRenderedEmailTemplateResult();
 
     var tic = Instant.now();
@@ -137,20 +137,20 @@ public class SubscriberTests {
   }
 
   private void givenListObjectsResult() {
-    objectsResult = Instancio.create(ListObjectsV2Result.class);
+    objectsResponse = Instancio.create(ListObjectsV2Response.class);
 
-    when(storageClient.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(objectsResult);
+    when(storageClient.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(objectsResponse);
   }
 
-  private void givenGetObjectsResult() throws FileNotFoundException {
-    var object = new S3Object();
+  private void givenGetObjectsResponse() throws IOException {
     var file = ResourceUtils.getFile("classpath:static/file.pdf");
-    object.setObjectContent(new FileInputStream(file));
-    var metadata = new ObjectMetadata();
-    metadata.setContentType(MediaType.APPLICATION_PDF_VALUE);
-    object.setObjectMetadata(metadata);
+    var bytes = Files.readAllBytes(file.toPath());
+    var response = GetObjectResponse.builder()
+            .contentType(MediaType.APPLICATION_PDF_VALUE)
+            .build();
+    var objectBytes = ResponseBytes.fromByteArray(response, bytes);
 
-    when(storageClient.getObject(anyString(), anyString())).thenReturn(object);
+    when(storageClient.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(objectBytes);
   }
 
   private void givenRenderedEmailTemplateResult() {
@@ -158,24 +158,24 @@ public class SubscriberTests {
             TestRenderEmailTemplateResponse.builder()
                     .renderedTemplate(
                 """
-                                        Subject: A Subject
-                                        MIME-Version: 1.0
-                                        Content-Type: multipart/alternative;\s
-                                        \tboundary="----=_Part_11286_1224453801.1698335693925"
+                        Subject: A Subject
+                        MIME-Version: 1.0
+                        Content-Type: multipart/alternative;\s
+                        \tboundary="----=_Part_11286_1224453801.1698335693925"
 
-                                        ------=_Part_11286_1224453801.1698335693925
-                                        Content-Type: text/plain; charset=UTF-8
-                                        Content-Transfer-Encoding: quoted-printable
+                        ------=_Part_11286_1224453801.1698335693925
+                        Content-Type: text/plain; charset=UTF-8
+                        Content-Transfer-Encoding: quoted-printable
 
-                                        Content1
+                        Content1
 
-                                        ------=_Part_11286_1224453801.1698335693925
-                                        Content-Type: text/html; charset=UTF-8
-                                        Content-Transfer-Encoding: quoted-printable
+                        ------=_Part_11286_1224453801.1698335693925
+                        Content-Type: text/html; charset=UTF-8
+                        Content-Transfer-Encoding: quoted-printable
 
-                                        Content2
+                        Content2
 
-                                        ------=_Part_11286_1224453801.1698335693925--
+                        ------=_Part_11286_1224453801.1698335693925--
                         """)
                     .build();
 

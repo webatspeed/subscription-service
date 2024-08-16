@@ -1,6 +1,5 @@
 package com.webatspeed.subscription.controller;
 
-import com.amazonaws.AmazonServiceException;
 import com.webatspeed.subscription.exception.EmailSendException;
 import com.webatspeed.subscription.exception.FalseTokenException;
 import com.webatspeed.subscription.exception.UserAlreadyExistsException;
@@ -10,6 +9,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 
 @RestControllerAdvice
 public class SubscriptionExceptionAdvice {
@@ -41,8 +41,8 @@ public class SubscriptionExceptionAdvice {
   }
 
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-  @ExceptionHandler(AmazonServiceException.class)
-  public ProblemDetail handleAmazonServiceException(final AmazonServiceException exception) {
+  @ExceptionHandler(AwsServiceException.class)
+  public ProblemDetail handleAwsServiceException(final AwsServiceException exception) {
     return ProblemDetail.forStatusAndDetail(
         HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
   }

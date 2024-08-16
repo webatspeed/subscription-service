@@ -1,6 +1,5 @@
 package com.webatspeed.subscription.service;
 
-import com.amazonaws.services.s3.AmazonS3;
 import com.webatspeed.subscription.SubscriptionMapper;
 import com.webatspeed.subscription.config.MailConfiguration;
 import com.webatspeed.subscription.exception.EmailSendException;
@@ -11,6 +10,7 @@ import jakarta.mail.internet.MimeMultipart;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sesv2.model.*;
 
@@ -26,7 +26,7 @@ public class Mailer {
 
   private final SesV2Client emailClient;
 
-  private final AmazonS3 storageClient;
+  private final S3Client storageClient;
 
   private final MailConfiguration mailConfiguration;
 
@@ -77,10 +77,11 @@ public class Mailer {
     content.addBodyPart(textAndHtmlPart);
 
     var listRequest = mapper.listRequestOf(mailConfiguration.getAttachmentBucket());
-    var listResult = storageClient.listObjectsV2(listRequest);
-    for (var summary : listResult.getObjectSummaries()) {
-      var object = storageClient.getObject(summary.getBucketName(), summary.getKey());
-      var attachmentPart = mapper.bodyPartOf(object, summary);
+    var listResponse = storageClient.listObjectsV2(listRequest);
+    for (var metaData : listResponse.contents()) {
+      var objectRequest = mapper.getRequest(listRequest.bucket(), metaData.key());
+      var objectBytes = storageClient.getObjectAsBytes(objectRequest);
+      var attachmentPart = mapper.bodyPartOf(objectBytes, metaData.key());
       content.addBodyPart(attachmentPart);
     }
 
