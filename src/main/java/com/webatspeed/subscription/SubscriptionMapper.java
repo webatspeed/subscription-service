@@ -3,10 +3,6 @@ package com.webatspeed.subscription;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.simpleemailv2.model.GetEmailTemplateRequest;
-import com.amazonaws.services.simpleemailv2.model.RawMessage;
-import com.amazonaws.services.simpleemailv2.model.Template;
-import com.amazonaws.services.simpleemailv2.model.TestRenderEmailTemplateRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.model.Subscription;
@@ -19,14 +15,19 @@ import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.util.ByteArrayDataSource;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.sesv2.model.GetEmailTemplateRequest;
+import software.amazon.awssdk.services.sesv2.model.RawMessage;
+import software.amazon.awssdk.services.sesv2.model.Template;
+import software.amazon.awssdk.services.sesv2.model.TestRenderEmailTemplateRequest;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -53,13 +54,13 @@ public class SubscriptionMapper {
             "username", username);
     var templateData = jsonOf(args);
 
-    return new Template().withTemplateName(templateName.toString()).withTemplateData(templateData);
+    return Template.builder().templateName(templateName.toString()).templateData(templateData).build();
   }
 
   public Template templateOf(String username, TemplateName templateName) {
     var args = Map.of("username", username);
 
-    return new Template().withTemplateName(templateName.toString()).withTemplateData(jsonOf(args));
+    return Template.builder().templateName(templateName.toString()).templateData(jsonOf(args)).build();
   }
 
   public TestRenderEmailTemplateRequest renderRequestOf(
@@ -69,13 +70,14 @@ public class SubscriptionMapper {
             "token", token,
             "username", username);
 
-    return new TestRenderEmailTemplateRequest()
-        .withTemplateName(templateName.toString())
-        .withTemplateData(jsonOf(args));
+    return TestRenderEmailTemplateRequest.builder()
+            .templateName(templateName.toString())
+            .templateData(jsonOf(args))
+            .build();
   }
 
   public GetEmailTemplateRequest templateRequestOf(TemplateName templateName) {
-    return new GetEmailTemplateRequest().withTemplateName(templateName.toString());
+    return GetEmailTemplateRequest.builder().templateName(templateName.toString()).build();
   }
 
   public MimeBodyPart bodyPartOf(String renderedTemplate, Session session)
@@ -112,9 +114,9 @@ public class SubscriptionMapper {
     var outputStream = new ByteArrayOutputStream();
     message.writeTo(outputStream);
 
-    var rawData = ByteBuffer.wrap(outputStream.toByteArray());
+    var rawData = SdkBytes.fromByteArray(outputStream.toByteArray());
 
-    return new RawMessage().withData(rawData);
+    return RawMessage.builder().data(rawData).build();
   }
 
   public ListObjectsV2Request listRequestOf(String bucketName) {

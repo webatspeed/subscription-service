@@ -1,26 +1,15 @@
 package com.webatspeed.subscription.controller;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.simpleemailv2.AmazonSimpleEmailServiceV2;
-import com.amazonaws.services.simpleemailv2.model.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webatspeed.subscription.SubscriptionRepository;
 import com.webatspeed.subscription.dto.SubscriptionDetails;
 import com.webatspeed.subscription.model.Subscription;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import net.datafaker.Faker;
 import org.instancio.Instancio;
 import org.instancio.Select;
@@ -36,6 +25,18 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
+import software.amazon.awssdk.services.sesv2.SesV2Client;
+import software.amazon.awssdk.services.sesv2.model.*;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
 @SpringBootTest
@@ -48,7 +49,8 @@ public class SubscriptionControllerTests {
 
   @Autowired private SubscriptionRepository subscriptionRepository;
 
-  @MockBean private AmazonSimpleEmailServiceV2 emailClient;
+  @MockBean
+  private SesV2Client emailClient;
 
   @MockBean private AmazonS3 storageClient;
 
@@ -140,14 +142,14 @@ public class SubscriptionControllerTests {
 
     verify(emailClient).sendEmail(captor.capture());
     var request = captor.getValue();
-    assertEquals(subscriptionDetails.email(), request.getDestination().getToAddresses().get(0));
-    var template = request.getContent().getTemplate();
-    assertEquals("please-confirm", template.getTemplateName());
-    assertTrue(template.getTemplateData().contains(subscriptionSaved.getUserConfirmationToken()));
-    assertTrue(template.getTemplateData().contains(subscriptionDetails.email()));
-    assertEquals("test@email.local", request.getFromEmailAddress());
-    assertEquals(1, request.getReplyToAddresses().size());
-    assertEquals("test@email.local", request.getReplyToAddresses().get(0));
+    assertEquals(subscriptionDetails.email(), request.destination().toAddresses().get(0));
+    var template = request.content().template();
+    assertEquals("please-confirm", template.templateName());
+    assertTrue(template.templateData().contains(subscriptionSaved.getUserConfirmationToken()));
+    assertTrue(template.templateData().contains(subscriptionDetails.email()));
+    assertEquals("test@email.local", request.fromEmailAddress());
+    assertEquals(1, request.replyToAddresses().size());
+    assertEquals("test@email.local", request.replyToAddresses().get(0));
   }
 
   @Test
@@ -301,24 +303,24 @@ public class SubscriptionControllerTests {
 
     var firstRequest = requests.get(0);
     assertEquals(
-        subscriptionDetails.email(), firstRequest.getDestination().getToAddresses().get(0));
-    var firstTemplate = firstRequest.getContent().getTemplate();
-    assertEquals("please-wait", firstTemplate.getTemplateName());
-    assertTrue(firstTemplate.getTemplateData().contains(subscriptionDetails.email()));
-    assertEquals("test@email.local", firstRequest.getFromEmailAddress());
-    assertEquals(1, firstRequest.getReplyToAddresses().size());
-    assertEquals("test@email.local", firstRequest.getReplyToAddresses().get(0));
+            subscriptionDetails.email(), firstRequest.destination().toAddresses().get(0));
+    var firstTemplate = firstRequest.content().template();
+    assertEquals("please-wait", firstTemplate.templateName());
+    assertTrue(firstTemplate.templateData().contains(subscriptionDetails.email()));
+    assertEquals("test@email.local", firstRequest.fromEmailAddress());
+    assertEquals(1, firstRequest.replyToAddresses().size());
+    assertEquals("test@email.local", firstRequest.replyToAddresses().get(0));
 
     var secondRequest = requests.get(1);
-    assertEquals("test@email.local", secondRequest.getDestination().getToAddresses().get(0));
-    var secondTemplate = secondRequest.getContent().getTemplate();
-    assertEquals("please-approve", secondTemplate.getTemplateName());
+    assertEquals("test@email.local", secondRequest.destination().toAddresses().get(0));
+    var secondTemplate = secondRequest.content().template();
+    assertEquals("please-approve", secondTemplate.templateName());
     assertTrue(
-        secondTemplate.getTemplateData().contains(savedSubscription.getOwnerConfirmationToken()));
-    assertTrue(secondTemplate.getTemplateData().contains(subscriptionDetails.email()));
-    assertEquals("test@email.local", secondRequest.getFromEmailAddress());
-    assertEquals(1, secondRequest.getReplyToAddresses().size());
-    assertEquals("test@email.local", secondRequest.getReplyToAddresses().get(0));
+            secondTemplate.templateData().contains(savedSubscription.getOwnerConfirmationToken()));
+    assertTrue(secondTemplate.templateData().contains(subscriptionDetails.email()));
+    assertEquals("test@email.local", secondRequest.fromEmailAddress());
+    assertEquals(1, secondRequest.replyToAddresses().size());
+    assertEquals("test@email.local", secondRequest.replyToAddresses().get(0));
   }
 
   @Test
@@ -353,17 +355,17 @@ public class SubscriptionControllerTests {
 
     verify(emailClient).sendEmail(captor.capture());
     var request = captor.getValue();
-    assertEquals(subscriptionDetails.email(), request.getDestination().getToAddresses().get(0));
-    var rawMessage = request.getContent().getRaw();
-    var content = StandardCharsets.UTF_8.decode(rawMessage.getData()).toString();
+    assertEquals(subscriptionDetails.email(), request.destination().toAddresses().get(0));
+    var rawMessage = request.content().raw();
+    var content = StandardCharsets.UTF_8.decode(rawMessage.data().asByteBuffer()).toString();
     assertTrue(content.contains("Content1"));
     assertTrue(content.contains("Content2"));
     assertEquals(
         objectsResult.getObjectSummaries().size(),
         StringUtils.countOccurrencesOf(content, "application/pdf"));
-    assertEquals("test@email.local", request.getFromEmailAddress());
-    assertEquals(1, request.getReplyToAddresses().size());
-    assertEquals("test@email.local", request.getReplyToAddresses().get(0));
+    assertEquals("test@email.local", request.fromEmailAddress());
+    assertEquals(1, request.replyToAddresses().size());
+    assertEquals("test@email.local", request.replyToAddresses().get(0));
   }
 
   @Test
@@ -604,8 +606,8 @@ public class SubscriptionControllerTests {
 
   private void givenRenderedEmailTemplateResult() {
     var testRenderEmailTemplateResult =
-        new TestRenderEmailTemplateResult()
-            .withRenderedTemplate(
+            TestRenderEmailTemplateResponse.builder()
+                    .renderedTemplate(
                 """
                             Subject: A Subject
                             MIME-Version: 1.0
@@ -625,7 +627,8 @@ public class SubscriptionControllerTests {
                             Content2
 
                             ------=_Part_11286_1224453801.1698335693925--
-                            """);
+                        """)
+                    .build();
 
     when(emailClient.testRenderEmailTemplate(any(TestRenderEmailTemplateRequest.class)))
         .thenReturn(testRenderEmailTemplateResult);
@@ -637,8 +640,8 @@ public class SubscriptionControllerTests {
   }
 
   private void givenGetEmailTemplateResult() {
-    var templateContent = new EmailTemplateContent().withSubject(FAKER.internet().emailSubject());
-    var getEmailTemplateResult = new GetEmailTemplateResult().withTemplateContent(templateContent);
+    var templateContent = EmailTemplateContent.builder().subject(FAKER.internet().emailSubject()).build();
+    var getEmailTemplateResult = GetEmailTemplateResponse.builder().templateContent(templateContent).build();
 
     when(emailClient.getEmailTemplate(any(GetEmailTemplateRequest.class)))
         .thenReturn(getEmailTemplateResult);

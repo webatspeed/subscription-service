@@ -1,10 +1,6 @@
 package com.webatspeed.subscription.service;
 
-import static com.webatspeed.subscription.service.TemplateName.*;
-
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.simpleemailv2.AmazonSimpleEmailServiceV2;
-import com.amazonaws.services.simpleemailv2.model.*;
 import com.webatspeed.subscription.SubscriptionMapper;
 import com.webatspeed.subscription.config.MailConfiguration;
 import com.webatspeed.subscription.exception.EmailSendException;
@@ -12,18 +8,23 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMultipart;
-import java.io.IOException;
-import java.util.Properties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.sesv2.SesV2Client;
+import software.amazon.awssdk.services.sesv2.model.*;
+
+import java.io.IOException;
+import java.util.Properties;
+
+import static com.webatspeed.subscription.service.TemplateName.*;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class Mailer {
 
-  private final AmazonSimpleEmailServiceV2 emailClient;
+  private final SesV2Client emailClient;
 
   private final AmazonS3 storageClient;
 
@@ -50,9 +51,9 @@ public class Mailer {
   public void emailCv(String to, String token, boolean isFirst) {
     var templateName = isFirst ? FIRST_CV : UPDATED_CV;
     var renderRequest = mapper.renderRequestOf(to, token, templateName);
-    var renderedTemplate = emailClient.testRenderEmailTemplate(renderRequest).getRenderedTemplate();
+    var renderedTemplate = emailClient.testRenderEmailTemplate(renderRequest).renderedTemplate();
     var templateRequest = mapper.templateRequestOf(templateName);
-    var subject = emailClient.getEmailTemplate(templateRequest).getTemplateContent().getSubject();
+    var subject = emailClient.getEmailTemplate(templateRequest).templateContent().subject();
 
     try {
       email(to, subject, renderedTemplate);
@@ -62,7 +63,7 @@ public class Mailer {
   }
 
   private void email(String to, Template template) {
-    var content = new EmailContent().withTemplate(template);
+    var content = EmailContent.builder().template(template).build();
     var from = mailConfiguration.getDefaultSender();
     emailContent(from, to, content);
   }
@@ -85,23 +86,24 @@ public class Mailer {
 
     var from = mailConfiguration.getDefaultSender();
     var rawMessage = mapper.rawMessageOf(from, to, subject, session, content);
-    var emailContent = new EmailContent().withRaw(rawMessage);
+    var emailContent = EmailContent.builder().raw(rawMessage).build();
 
     emailContent(from, to, emailContent);
   }
 
   private void emailContent(String from, String to, EmailContent content) {
-    var destination = new Destination().withToAddresses(to);
+    var destination = Destination.builder().toAddresses(to).build();
     var request =
-        new SendEmailRequest()
-            .withDestination(destination)
-            .withContent(content)
-            .withReplyToAddresses(from)
-            .withFromEmailAddress(from);
+            SendEmailRequest.builder()
+                    .destination(destination)
+                    .content(content)
+                    .replyToAddresses(from)
+                    .fromEmailAddress(from)
+                    .build();
 
     try {
       emailClient.sendEmail(request);
-    } catch (AmazonSimpleEmailServiceV2Exception e) {
+    } catch (SesV2Exception e) {
       throw new EmailSendException(e);
     }
   }

@@ -1,23 +1,12 @@
 package com.webatspeed.subscription.service;
 
-import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
-
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.simpleemailv2.AmazonSimpleEmailServiceV2;
-import com.amazonaws.services.simpleemailv2.model.*;
 import com.webatspeed.subscription.SubscriptionRepository;
 import com.webatspeed.subscription.model.Subscription;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.time.Duration;
-import java.time.Instant;
 import net.datafaker.Faker;
 import org.instancio.Instancio;
 import org.instancio.Select;
@@ -30,6 +19,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.util.ResourceUtils;
+import software.amazon.awssdk.services.sesv2.SesV2Client;
+import software.amazon.awssdk.services.sesv2.model.*;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.time.Duration;
+import java.time.Instant;
+
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 public class SubscriberTests {
@@ -40,7 +41,8 @@ public class SubscriberTests {
 
   @Autowired private SubscriptionRepository subscriptionRepository;
 
-  @MockBean private AmazonSimpleEmailServiceV2 emailClient;
+  @MockBean
+  private SesV2Client emailClient;
 
   @MockBean private AmazonS3 storageClient;
 
@@ -127,8 +129,8 @@ public class SubscriberTests {
   }
 
   private void givenGetEmailTemplateResult() {
-    var templateContent = new EmailTemplateContent().withSubject(FAKER.internet().emailSubject());
-    var getEmailTemplateResult = new GetEmailTemplateResult().withTemplateContent(templateContent);
+    var templateContent = EmailTemplateContent.builder().subject(FAKER.internet().emailSubject()).build();
+    var getEmailTemplateResult = GetEmailTemplateResponse.builder().templateContent(templateContent).build();
 
     when(emailClient.getEmailTemplate(any(GetEmailTemplateRequest.class)))
         .thenReturn(getEmailTemplateResult);
@@ -153,8 +155,8 @@ public class SubscriberTests {
 
   private void givenRenderedEmailTemplateResult() {
     var testRenderEmailTemplateResult =
-        new TestRenderEmailTemplateResult()
-            .withRenderedTemplate(
+            TestRenderEmailTemplateResponse.builder()
+                    .renderedTemplate(
                 """
                                         Subject: A Subject
                                         MIME-Version: 1.0
@@ -174,7 +176,8 @@ public class SubscriberTests {
                                         Content2
 
                                         ------=_Part_11286_1224453801.1698335693925--
-                                        """);
+                        """)
+                    .build();
 
     when(emailClient.testRenderEmailTemplate(any(TestRenderEmailTemplateRequest.class)))
         .thenReturn(testRenderEmailTemplateResult);
