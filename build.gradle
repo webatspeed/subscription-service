@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.2.9'
+    id 'org.springframework.boot' version '3.2.10'
     id 'io.spring.dependency-management' version '1.1.6'
     id 'com.adarshr.test-logger' version '3.2.0'
 }
@@ -24,7 +24,7 @@ repositories {
 }
 
 dependencies {
-    def awsSdkVersion = "2.27.24"
+    def awsSdkVersion = "2.28.26"
 
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -33,19 +33,19 @@ dependencies {
     implementation "software.amazon.awssdk:sesv2:$awsSdkVersion"
     implementation 'com.sun.mail:jakarta.mail:2.0.1'
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
-    implementation 'org.springframework.boot:spring-boot-starter-aop:3.3.3'
+    implementation 'org.springframework.boot:spring-boot-starter-aop:3.3.4'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'net.datafaker:datafaker:2.3.1'
+    testImplementation 'net.datafaker:datafaker:2.4.0'
     testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo.spring31x:4.9.3'
     constraints {
         testImplementation('org.apache.commons:commons-compress:1.27.1') {
             because 'version <=1.25.0 pulled from embedded mongo has vulnerabilities'
         }
     }
-    testImplementation 'org.instancio:instancio-junit:5.0.1'
+    testImplementation 'org.instancio:instancio-junit:5.0.2'
     testImplementation 'org.awaitility:awaitility:4.2.2'
 }
 
